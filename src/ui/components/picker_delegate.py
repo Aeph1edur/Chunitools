@@ -6,7 +6,16 @@ from functools import lru_cache
 from typing import cast
 
 from PIL import Image
-from PySide6.QtCore import QAbstractItemModel, QEvent, QModelIndex, QPersistentModelIndex, QPoint, QRectF, QSize, Qt
+from PySide6.QtCore import (
+    QAbstractItemModel,
+    QEvent,
+    QModelIndex,
+    QPersistentModelIndex,
+    QPoint,
+    QRectF,
+    QSize,
+    Qt,
+)
 from PySide6.QtGui import (
     QColor,
     QFont,
@@ -19,8 +28,7 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import QStyle, QStyledItemDelegate, QStyleOptionViewItem, QWidget
 
-from src.core.read import SongInfo
-from src.core.read import fast_get_metadata, MetadataPreview
+from src.core.read import MetadataPreview, SongInfo, fast_get_metadata
 from src.ui import theme
 
 LOGGER = logging.getLogger(__name__)
@@ -72,9 +80,7 @@ def load_dds_to_pixmap(path: str) -> QPixmap:
             source.thumbnail((64, 64), Image.Resampling.LANCZOS)
             image = source.convert("RGBA")
             data = image.tobytes("raw", "RGBA")
-            qimg = QImage(
-                data, image.size[0], image.size[1], QImage.Format.Format_RGBA8888
-            )
+            qimg = QImage(data, image.size[0], image.size[1], QImage.Format.Format_RGBA8888)
             return QPixmap.fromImage(qimg)
     except (OSError, ValueError) as exc:
         LOGGER.warning("Failed to load DDS %s: %s", path, exc)
@@ -90,7 +96,11 @@ class SongDelegate(QStyledItemDelegate):
         self._level_font = QFont(theme.FONT_MONO, 10, QFont.Weight.Medium)
 
     def editorEvent(
-        self, event: QEvent, model: QAbstractItemModel, option: QStyleOptionViewItem, index: QModelIndex | QPersistentModelIndex
+        self,
+        event: QEvent,
+        model: QAbstractItemModel,
+        option: QStyleOptionViewItem,
+        index: QModelIndex | QPersistentModelIndex,
     ) -> bool:
         if event.type() == QEvent.Type.MouseButtonPress:
             mevent = cast("QMouseEvent", event)
@@ -105,9 +115,7 @@ class SongDelegate(QStyledItemDelegate):
                 marker_x = text_x
 
                 metrics = QFontMetrics(self._level_font)
-                view_mode = (
-                    option.widget.property("view_mode") if option.widget else "standard"
-                )
+                view_mode = option.widget.property("view_mode") if option.widget else "standard"
                 visible = _VISIBLE_DIFFICULTIES.get(view_mode, frozenset({0, 1, 2, 3}))
                 for fumen in song.fumens:
                     if fumen.difficulty not in visible:
@@ -171,7 +179,10 @@ class SongDelegate(QStyledItemDelegate):
         return False
 
     def paint(  # noqa: PLR0915
-        self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex | QPersistentModelIndex
+        self,
+        painter: QPainter,
+        option: QStyleOptionViewItem,
+        index: QModelIndex | QPersistentModelIndex,
     ) -> None:
         song = index.data(Qt.ItemDataRole.UserRole)
         if not isinstance(song, SongInfo):
@@ -245,7 +256,9 @@ class SongDelegate(QStyledItemDelegate):
         painter.drawText(
             charter_rect,
             Qt.TextFlag.TextSingleLine,
-            painter.fontMetrics().elidedText(charter_text, Qt.TextElideMode.ElideRight, int(text_w)),
+            painter.fontMetrics().elidedText(
+                charter_text, Qt.TextElideMode.ElideRight, int(text_w)
+            ),
         )
 
         # ID line
@@ -276,7 +289,6 @@ class SongDelegate(QStyledItemDelegate):
             )
             box_rect = QRectF(marker_x, marker_y, box_w, _LEVEL_CHIP_HEIGHT)
 
-            
             painter.save()
             # Draw Pill Background
             painter.setPen(QPen(QColor(theme.BORDER_CHIP), 1.0))
@@ -286,7 +298,7 @@ class SongDelegate(QStyledItemDelegate):
                 box_rect.height() / 2,
                 box_rect.height() / 2,
             )
-            
+
             # Draw Text
             painter.setFont(self._level_font)
             painter.setPen(QColor(theme.TEXT_SUBTLE))
@@ -297,6 +309,8 @@ class SongDelegate(QStyledItemDelegate):
 
         painter.restore()
 
-    def sizeHint(self, option: QStyleOptionViewItem, index: QModelIndex | QPersistentModelIndex) -> QSize:
+    def sizeHint(
+        self, option: QStyleOptionViewItem, index: QModelIndex | QPersistentModelIndex
+    ) -> QSize:
         _ = index
         return QSize(200, 150)

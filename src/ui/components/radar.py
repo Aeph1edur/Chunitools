@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QPointF, QRectF, Qt
@@ -32,10 +31,23 @@ _AXES: tuple[RadarAxis, ...] = (
     RadarAxis("TAP", (NoteType.TAP,), theme.qt(theme.NOTE_TAP)),
     RadarAxis("EX TAP", (NoteType.CHR,), theme.qt(theme.NOTE_CHR)),
     RadarAxis("HOLD", (NoteType.HLD, NoteType.HXD), theme.qt(theme.NOTE_HOLD)),
-    RadarAxis("SLIDE", (NoteType.SLD, NoteType.SLC, NoteType.SXD, NoteType.SXC, NoteType.ASC, NoteType.ASD), theme.qt(theme.NOTE_SLIDE)),
+    RadarAxis(
+        "SLIDE",
+        (NoteType.SLD, NoteType.SLC, NoteType.SXD, NoteType.SXC, NoteType.ASC, NoteType.ASD),
+        theme.qt(theme.NOTE_SLIDE),
+    ),
     RadarAxis(
         "AIR",
-        (NoteType.AIR, NoteType.AUR, NoteType.AUL, NoteType.AHD, NoteType.ADW, NoteType.ADR, NoteType.ADL, NoteType.ALD),
+        (
+            NoteType.AIR,
+            NoteType.AUR,
+            NoteType.AUL,
+            NoteType.AHD,
+            NoteType.ADW,
+            NoteType.ADR,
+            NoteType.ADL,
+            NoteType.ALD,
+        ),
         theme.qt(theme.NOTE_AIR_TRACE),
     ),
     RadarAxis("FLICK", (NoteType.FLK,), theme.qt(theme.NOTE_FLICK)),
@@ -90,7 +102,11 @@ class NoteDensityRadar(QWidget):
         painter.setBrush(theme.qt(theme.OVERLAY_PANEL_FILL))
         painter.drawRoundedRect(bounds, 6, 6)
 
-        if radius != self._cached_radius or center != self._cached_center or self._cached_rings is None:
+        if (
+            radius != self._cached_radius
+            or center != self._cached_center
+            or self._cached_rings is None
+        ):
             self._cached_rings = self._ring_points(center, radius)
             self._cached_radius = radius
             self._cached_center = center
@@ -117,7 +133,9 @@ class NoteDensityRadar(QWidget):
             rings.append(ring)
         return rings
 
-    def _draw_grid(self, painter: QPainter, center: QPointF, points_by_ring: list[list[QPointF]]) -> None:
+    def _draw_grid(
+        self, painter: QPainter, center: QPointF, points_by_ring: list[list[QPointF]]
+    ) -> None:
         painter.setPen(QPen(theme.qt(theme.RADAR_GRID_OUTLINE), 2))
         painter.setBrush(theme.qt(theme.RADAR_GRID_FILL))
         painter.drawPolygon(QPolygonF(points_by_ring[-1]))

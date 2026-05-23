@@ -497,7 +497,7 @@ def test_parented_asc_start_arrow_uses_ground_chr_anchor(monkeypatch) -> None:
     vanish_x = 640.0
     vanish_y = 72.0
     judge_y = 648.0
-    scale, ground_y, _ = _projection_for_depth(0.0, 1280.0, 720.0)
+    scale, _, _ = _projection_for_depth(0.0, 1280.0, 720.0)
     path_y = view._air_path_screen_y(chain, 0.0)
     path_x, path_w = _air_path_screen_span(chain.cell, chain.width, vanish_x, scale)
 
@@ -516,10 +516,11 @@ def test_parented_asc_start_arrow_uses_ground_chr_anchor(monkeypatch) -> None:
         0.0,
     )
 
+    # Air arrows now keep their caller-provided Y (note's own air height)
     assert drawn == [
         (
             pytest.approx(_air_arrow_screen_span(0.0, 4.0, vanish_x, scale)[0]),
-            pytest.approx(ground_y),
+            pytest.approx(path_y),
             pytest.approx(_air_arrow_screen_span(0.0, 4.0, vanish_x, scale)[1]),
             NoteType.AIR,
         )
@@ -742,7 +743,7 @@ def test_ahd_start_arrow_uses_ground_anchor(monkeypatch) -> None:
     vanish_x = 640.0
     vanish_y = 72.0
     judge_y = 648.0
-    scale, ground_y, _ = _projection_for_depth(0.0, 1280.0, 720.0)
+    scale, _, _ = _projection_for_depth(0.0, 1280.0, 720.0)
     path_x, path_w = _air_path_screen_span(air_hold.cell, air_hold.width, vanish_x, scale)
     path_y = view._air_path_screen_y(air_hold, 0.0)
 
@@ -761,10 +762,11 @@ def test_ahd_start_arrow_uses_ground_anchor(monkeypatch) -> None:
         0.0,
     )
 
+    # Air arrows now keep their caller-provided Y (note's own air height)
     assert drawn == [
         (
             pytest.approx(_air_arrow_screen_span(0.0, 4.0, vanish_x, scale)[0]),
-            pytest.approx(ground_y),
+            pytest.approx(path_y),
             pytest.approx(_air_arrow_screen_span(0.0, 4.0, vanish_x, scale)[1]),
             NoteType.AIR,
         )
@@ -967,7 +969,7 @@ def test_ahx_independent_start_arrow_uses_ground_anchor(monkeypatch) -> None:
     vanish_x = 640.0
     vanish_y = 72.0
     judge_y = 648.0
-    scale, ground_y, _ = _projection_for_depth(0.0, 1280.0, 720.0)
+    scale, _, _ = _projection_for_depth(0.0, 1280.0, 720.0)
     path_x, path_w = _air_path_screen_span(air_action.cell, air_action.width, vanish_x, scale)
     path_y = view._air_path_screen_y(air_action, 0.0)
 
@@ -986,10 +988,11 @@ def test_ahx_independent_start_arrow_uses_ground_anchor(monkeypatch) -> None:
         0.0,
     )
 
+    # Air arrows now keep their caller-provided Y (note's own air height)
     assert drawn == [
         (
             pytest.approx(_air_arrow_screen_span(0.0, 4.0, vanish_x, scale)[0]),
-            pytest.approx(ground_y),
+            pytest.approx(path_y),
             pytest.approx(_air_arrow_screen_span(0.0, 4.0, vanish_x, scale)[1]),
             NoteType.AIR,
         )

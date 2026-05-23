@@ -23,11 +23,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.core.read import SongInfo
-from src.core.read import MetadataPreview, fast_get_metadata
+from src.core.read import MetadataPreview, SongInfo, fast_get_metadata
 from src.ui import theme
-from src.ui.components.picker_model import SongModel
 from src.ui.components.picker_delegate import SongDelegate
+from src.ui.components.picker_model import SongModel
 
 ViewMode = Literal["standard", "ultima", "worlds_end"]
 
@@ -210,15 +209,9 @@ class ChartPicker(QWidget):
             button.setFixedHeight(28)
             button.setStyleSheet(_MODE_BUTTON_STYLESHEET)
 
-        self.btn_std.clicked.connect(
-            lambda _checked=False: self.set_view_mode("standard")
-        )
-        self.btn_ult.clicked.connect(
-            lambda _checked=False: self.set_view_mode("ultima")
-        )
-        self.btn_we.clicked.connect(
-            lambda _checked=False: self.set_view_mode("worlds_end")
-        )
+        self.btn_std.clicked.connect(lambda _checked=False: self.set_view_mode("standard"))
+        self.btn_ult.clicked.connect(lambda _checked=False: self.set_view_mode("ultima"))
+        self.btn_we.clicked.connect(lambda _checked=False: self.set_view_mode("worlds_end"))
 
         toggle_row.addWidget(self.btn_std)
         toggle_row.addWidget(self.btn_ult)
@@ -267,15 +260,15 @@ class ChartPicker(QWidget):
 
         menu = QMenu(self)
         menu.setStyleSheet(_MENU_STYLESHEET)
-        
+
         copy_action = QAction("Copy Song Name", self)
         copy_action.triggered.connect(lambda: self._copy_to_clipboard(song.name))
         menu.addAction(copy_action)
-        
+
         action = QAction("Open File Location", self)
         action.triggered.connect(lambda: self._open_song_location(song))
         menu.addAction(action)
-        
+
         menu.exec(view.viewport().mapToGlobal(pos))
 
     @staticmethod
@@ -296,9 +289,7 @@ class ChartPicker(QWidget):
     def _populate_all_lists(self) -> None:
         """Populate models from song list."""
         # 1. World's End: Specialized folders
-        worlds_end = [
-            song for song in self.songs if song.folder_name.startswith("music8")
-        ]
+        worlds_end = [song for song in self.songs if song.folder_name.startswith("music8")]
 
         # 2. Ultima: Standard folders that contain an ULTIMA difficulty chart
         # These are moved out of the standard list into their own dedicated tab.
@@ -310,9 +301,7 @@ class ChartPicker(QWidget):
         ]
 
         # 3. Standard: All standard folders (non-music8), including those with Ultima charts.
-        standard = [
-            song for song in self.songs if not song.folder_name.startswith("music8")
-        ]
+        standard = [song for song in self.songs if not song.folder_name.startswith("music8")]
 
         self.model_std._all_songs = standard
         self.model_std.filter("")

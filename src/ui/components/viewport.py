@@ -65,7 +65,9 @@ class ChartViewport(QWidget):
     note_size_drag_place_requested = Signal(float, int, int)
     note_drag_place_requested = Signal(float, int, float, int)
 
-    def __init__(self, parent: QWidget | None = None, playback_controller: PlaybackController | None = None) -> None:  # noqa: PLR0915
+    def __init__(
+        self, parent: QWidget | None = None, playback_controller: PlaybackController | None = None
+    ) -> None:  # noqa: PLR0915
         super().__init__(parent)
         self.playback_controller = playback_controller
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
@@ -124,9 +126,7 @@ class ChartViewport(QWidget):
 
         self._selection_drag_autoscroll = QTimer(self)
         self._selection_drag_autoscroll.setInterval(SELECTION_EDGE_INTERVAL_MS)
-        self._selection_drag_autoscroll.timeout.connect(
-            self._tick_selection_drag_autoscroll
-        )
+        self._selection_drag_autoscroll.timeout.connect(self._tick_selection_drag_autoscroll)
 
         self._frame_timer = QElapsedTimer()
         self._frame_timer.start()
@@ -295,9 +295,7 @@ class ChartViewport(QWidget):
     def set_total_measures(self, value: float | None) -> None:
         if value is None:
             if self.chart is not None:
-                self._max_scroll_measure = float(
-                    self.chart.timeline.calculate_max_measure() + 3
-                )
+                self._max_scroll_measure = float(self.chart.timeline.calculate_max_measure() + 3)
         else:
             self._max_scroll_measure = max(
                 self._max_scroll_measure,
@@ -384,9 +382,7 @@ class ChartViewport(QWidget):
                     self.update()
                 return
             if event.modifiers() & Qt.KeyboardModifier.AltModifier:
-                self._drag_last_pos = self.projection.pos_at(
-                    event.position().y(), self.current_pos
-                )
+                self._drag_last_pos = self.projection.pos_at(event.position().y(), self.current_pos)
                 self.setCursor(Qt.CursorShape.ClosedHandCursor)
                 return
             if self.editor_place_mode:
@@ -431,7 +427,9 @@ class ChartViewport(QWidget):
             return
 
     def _is_note_selected(self, note: Note) -> bool:
-        return self.selected_note is note or any(selected is note for selected in self.selected_notes)
+        return self.selected_note is note or any(
+            selected is note for selected in self.selected_notes
+        )
 
     def _reset_right_press_state(self) -> None:
         self._right_press_pos = None
@@ -469,10 +467,7 @@ class ChartViewport(QWidget):
         return 0.0
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        if (
-            self._placement_drag_origin is not None
-            and event.buttons() & Qt.MouseButton.LeftButton
-        ):
+        if self._placement_drag_origin is not None and event.buttons() & Qt.MouseButton.LeftButton:
             placement_width = 1 if self._placement_drag_kind == "size" else None
             target = self._placement_target(event.position(), placement_width)
             if target is not None:
@@ -486,10 +481,7 @@ class ChartViewport(QWidget):
             and self._right_drag_exceeds_threshold(event.position())
         ):
             self._start_selection_drag(self._right_press_pos)
-        if (
-            self._selection_drag_origin is not None
-            and event.buttons() & Qt.MouseButton.RightButton
-        ):
+        if self._selection_drag_origin is not None and event.buttons() & Qt.MouseButton.RightButton:
             self._selection_drag_viewport_pos = event.position()
             self._selection_drag_current = self._selection_drag_point(event.position())
             self._selection_edge_velocity = self._calculate_drag_velocity(
@@ -504,10 +496,7 @@ class ChartViewport(QWidget):
                 self._selection_drag_autoscroll.stop()
             self.update()
             return
-        if (
-            self._drag_last_pos is not None
-            and event.buttons() & Qt.MouseButton.LeftButton
-        ):
+        if self._drag_last_pos is not None and event.buttons() & Qt.MouseButton.LeftButton:
             new_pos = self.projection.pos_at(event.position().y(), self.current_pos)
             delta = self._drag_last_pos - new_pos
             self.set_current_pos(self.current_pos + delta)
@@ -584,12 +573,21 @@ class ChartViewport(QWidget):
             if self.column_mode:
                 self._paint_column_mode(painter, view_width, view_height, chart_width, render_pos)
             else:
-                self._paint_scrolling_mode(painter, view_width, view_height, chart_width, render_pos)
+                self._paint_scrolling_mode(
+                    painter, view_width, view_height, chart_width, render_pos
+                )
 
         finally:
             painter.end()
 
-    def _paint_scrolling_mode(self, painter: QPainter, view_width: int, view_height: int, chart_width: float, render_pos: float) -> None:
+    def _paint_scrolling_mode(
+        self,
+        painter: QPainter,
+        view_width: int,
+        view_height: int,
+        chart_width: float,
+        render_pos: float,
+    ) -> None:
         offset_x = (view_width - chart_width) / 2.0
         painter.translate(offset_x, float(view_height - self.judgment_offset))
 
@@ -611,7 +609,7 @@ class ChartViewport(QWidget):
         self.painter_engine.draw_notes(painter, visible_notes, render_pos)
 
         if self.show_judgment:
-            painter.setPen(QPen(theme.qt(theme.ACCENT), 4)) # Increased width for better visibility
+            painter.setPen(QPen(theme.qt(theme.ACCENT), 4))  # Increased width for better visibility
             painter.drawLine(0, 0, int(chart_width), 0)
 
         if self._placement_drag_origin and self._placement_drag_current:
@@ -623,7 +621,14 @@ class ChartViewport(QWidget):
         for note in self.selected_notes:
             self._draw_note_selection_outline(painter, note, self.projection, render_pos)
 
-    def _paint_column_mode(self, painter: QPainter, view_width: int, view_height: int, chart_width: float, render_pos: float) -> None:
+    def _paint_column_mode(
+        self,
+        painter: QPainter,
+        view_width: int,
+        view_height: int,
+        chart_width: float,
+        render_pos: float,
+    ) -> None:
         col_full_width = chart_width + self.column_spacing
         num_cols = int(max(1, view_width // col_full_width))
 
@@ -637,14 +642,18 @@ class ChartViewport(QWidget):
             block_offset_x = (view_width - total_cols_width) // 2
             col_x = block_offset_x + i * col_full_width
 
-            painter.translate(col_x, view_height - 50) # Bottom margin
+            painter.translate(col_x, view_height - 50)  # Bottom margin
 
             m_start = start_measure + i * self.measures_per_column
             m_end = m_start + self.measures_per_column
 
             # Draw column
-            self.painter_engine.draw_lane_lines(painter, float(m_start), float(m_end), float(m_start))
-            self.painter_engine.draw_measure_lines(painter, m_start, m_end, float(m_start), chart_width)
+            self.painter_engine.draw_lane_lines(
+                painter, float(m_start), float(m_end), float(m_start)
+            )
+            self.painter_engine.draw_measure_lines(
+                painter, m_start, m_end, float(m_start), chart_width
+            )
 
             # Get notes for these measures
             col_notes = []
@@ -664,7 +673,7 @@ class ChartViewport(QWidget):
         """Return (top_offset, bottom_offset) relative to note._abs_pos in pixels."""
         timeline = self.chart.timeline if self.chart else None
         if not timeline:
-             return (7, -7)
+            return (7, -7)
 
         abs_pos = timeline.note_abs_pos(note)
         abs_end_pos = timeline.note_abs_end_pos(note)
@@ -720,9 +729,7 @@ class ChartViewport(QWidget):
             note_y = projection.y(self.chart.timeline.note_abs_pos(note), current_pos)
 
             top_off, bot_off = self._get_note_bounds(note)
-            rect = QRectF(
-                note_x - 4, note_y - top_off - 4, note_w + 8, (top_off - bot_off) + 8
-            )
+            rect = QRectF(note_x - 4, note_y - top_off - 4, note_w + 8, (top_off - bot_off) + 8)
 
             if not rect.contains(local_x, local_y):
                 continue
@@ -799,9 +806,7 @@ class ChartViewport(QWidget):
             width = projection.w(note.width)
 
             top_off, bot_off = self._get_note_bounds(note)
-            rect = QRectF(
-                x_pos - 4, y_pos - top_off - 4, width + 8, (top_off - bot_off) + 8
-            )
+            rect = QRectF(x_pos - 4, y_pos - top_off - 4, width + 8, (top_off - bot_off) + 8)
 
             if viewport_rect.intersects(rect):
                 matches.append(note)
@@ -822,9 +827,7 @@ class ChartViewport(QWidget):
         width = projection.w(note.width)
 
         top_off, bot_off = self._get_note_bounds(note)
-        rect = QRectF(
-            x_pos - 4, y_pos - top_off - 4, width + 8, (top_off - bot_off) + 8
-        )
+        rect = QRectF(x_pos - 4, y_pos - top_off - 4, width + 8, (top_off - bot_off) + 8)
 
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.setPen(QPen(theme.qt(theme.SELECTION_OUTLINE), 2, Qt.PenStyle.DashLine))
@@ -847,9 +850,7 @@ class ChartViewport(QWidget):
         self._placement_drag_kind = None
         self.setMouseTracking(False)
         cursor = (
-            Qt.CursorShape.CrossCursor
-            if self.editor_place_mode
-            else Qt.CursorShape.ArrowCursor
+            Qt.CursorShape.CrossCursor if self.editor_place_mode else Qt.CursorShape.ArrowCursor
         )
         self.setCursor(cursor)
 
@@ -894,9 +895,7 @@ class ChartViewport(QWidget):
     def _get_visible_notes(self, start_pos: float, end_pos: float) -> list[Note]:
         if not self.chart:
             return []
-        return self._collect_notes_in_range(
-            self._notes_by_start_pos, start_pos, end_pos
-        )
+        return self._collect_notes_in_range(self._notes_by_start_pos, start_pos, end_pos)
 
     def _collect_visible_notes(
         self,
@@ -916,9 +915,7 @@ class ChartViewport(QWidget):
                 seen.add(note_id)
         return visible
 
-    def _draw_selection_box(
-        self, painter: QPainter, offset_x: float, view_height: int
-    ) -> None:
+    def _draw_selection_box(self, painter: QPainter, offset_x: float, view_height: int) -> None:
         rect = self._selection_rect()
         painter.save()
         painter.resetTransform()
@@ -1073,9 +1070,7 @@ class ChartViewport(QWidget):
             return
         self.set_current_pos(self.current_pos + self._selection_edge_velocity)
         self.user_seeked.emit(self.current_pos)
-        self._selection_drag_current = self._selection_drag_point(
-            self._selection_drag_viewport_pos
-        )
+        self._selection_drag_current = self._selection_drag_point(self._selection_drag_viewport_pos)
         self.update()
 
     def jump_to_measure(self, measure: int, offset: int = 0) -> None:
