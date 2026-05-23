@@ -70,8 +70,13 @@ class Note(ABC):
     def get_extra_parts(self) -> list[str]: ...
 
     def serialize(self) -> str:
-        parts = [self.note_type.value, str(self.measure), str(self.offset),
-                 str(self.cell), str(self.width)]
+        parts = [
+            self.note_type.value,
+            str(self.measure),
+            str(self.offset),
+            str(self.cell),
+            str(self.width),
+        ]
         parts.extend(str(p) for p in self.get_extra_parts())
         return "\t".join(parts)
 
@@ -82,9 +87,19 @@ class Note(ABC):
 
     @classmethod
     @abstractmethod
-    def build(cls, note_type: str, *, measure: int = 0, offset: int = 0,
-              cell: int = 0, width: int = 0, parent: Note | None = None,
-              duration: int = DEFAULT_NOTE_DURATION,
-              end_cell: int | None = None, end_width: int | None = None,
-              target_note: str | None = None, **ignored: object) -> Note:
+    def build(
+        cls,
+        note_type: str,
+        *,
+        measure: int = 0,
+        offset: int = 0,
+        cell: int = 0,
+        width: int = 0,
+        parent: Note | None = None,
+        duration: int = DEFAULT_NOTE_DURATION,
+        end_cell: int | None = None,
+        end_width: int | None = None,
+        target_note: str | None = None,
+        **ignored: object,
+    ) -> Note:
         """Create an editor-default note from a string key."""

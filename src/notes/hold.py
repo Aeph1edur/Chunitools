@@ -23,15 +23,38 @@ class Hold(Note):
     @classmethod
     def parse(cls, note_type: NoteType, head: NoteHead) -> Note:
         f = parse_schema_fields(note_type, head["data"])
-        return cls(note_type=note_type, measure=head["measure"], offset=head["offset"],
-                   cell=head["cell"], width=head["width"],
-                   duration=f["duration"], animation=f.get("animation"))
+        return cls(
+            note_type=note_type,
+            measure=head["measure"],
+            offset=head["offset"],
+            cell=head["cell"],
+            width=head["width"],
+            duration=f["duration"],
+            animation=f.get("animation"),
+        )
 
     @classmethod
-    def build(cls, note_type: NoteType, *, measure=0, offset=0, cell=0, width=0,
-              parent=None, duration=384, **ignored) -> Note:
-        return cls(note_type=note_type, measure=measure, offset=offset,
-                   cell=cell, width=width, parent=parent, duration=duration)
+    def build(
+        cls,
+        note_type: NoteType,
+        *,
+        measure=0,
+        offset=0,
+        cell=0,
+        width=0,
+        parent=None,
+        duration=384,
+        **ignored,
+    ) -> Note:
+        return cls(
+            note_type=note_type,
+            measure=measure,
+            offset=offset,
+            cell=cell,
+            width=width,
+            parent=parent,
+            duration=duration,
+        )
 
     def get_extra_parts(self) -> list[str]:
         parts = [str(self.duration)]

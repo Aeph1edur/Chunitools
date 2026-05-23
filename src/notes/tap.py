@@ -18,17 +18,30 @@ class Tap(Note):
 
     @classmethod
     def parse(cls, note_type: NoteType, head: NoteHead) -> Note:
-        return cls(note_type=note_type, measure=head["measure"], offset=head["offset"],
-                   cell=head["cell"], width=head["width"])
+        return cls(
+            note_type=note_type,
+            measure=head["measure"],
+            offset=head["offset"],
+            cell=head["cell"],
+            width=head["width"],
+        )
 
     @classmethod
-    def build(cls, note_type: NoteType, *, measure=0, offset=0, cell=0, width=0,
-              parent=None, **ignored) -> Note:
-        return cls(note_type=note_type, measure=measure, offset=offset,
-                   cell=cell, width=width, parent=parent)
+    def build(
+        cls, note_type: NoteType, *, measure=0, offset=0, cell=0, width=0, parent=None, **ignored
+    ) -> Note:
+        return cls(
+            note_type=note_type,
+            measure=measure,
+            offset=offset,
+            cell=cell,
+            width=width,
+            parent=parent,
+        )
 
     def get_extra_parts(self) -> list[str]:
         return []
+
 
 @dataclass(frozen=True, kw_only=True, slots=True, init=False)
 class ExTap(Note):
@@ -39,10 +52,18 @@ class ExTap(Note):
 
     animation: str
 
-    def __init__(self, *, note_type: NoteType, measure: int, offset: int,
-                 cell: int, width: int, parent: Note | None = None,
-                 animation: str | None = None,
-                 unknown: str | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        note_type: NoteType,
+        measure: int,
+        offset: int,
+        cell: int,
+        width: int,
+        parent: Note | None = None,
+        animation: str | None = None,
+        unknown: str | None = None,
+    ) -> None:
         if animation is None:
             if unknown is None:
                 msg = "ExTap requires animation"
@@ -59,14 +80,28 @@ class ExTap(Note):
     @classmethod
     def parse(cls, note_type: NoteType, head: NoteHead) -> Note:
         f = parse_schema_fields(note_type, head["data"])
-        return cls(note_type=note_type, measure=head["measure"], offset=head["offset"],
-                   cell=head["cell"], width=head["width"], animation=f["animation"])
+        return cls(
+            note_type=note_type,
+            measure=head["measure"],
+            offset=head["offset"],
+            cell=head["cell"],
+            width=head["width"],
+            animation=f["animation"],
+        )
 
     @classmethod
-    def build(cls, note_type: NoteType, *, measure=0, offset=0, cell=0, width=0,
-              parent=None, **ignored) -> Note:
-        return cls(note_type=note_type, measure=measure, offset=offset,
-                   cell=cell, width=width, parent=parent, animation="0")
+    def build(
+        cls, note_type: NoteType, *, measure=0, offset=0, cell=0, width=0, parent=None, **ignored
+    ) -> Note:
+        return cls(
+            note_type=note_type,
+            measure=measure,
+            offset=offset,
+            cell=cell,
+            width=width,
+            parent=parent,
+            animation="0",
+        )
 
     @property
     def unknown(self) -> str:
@@ -75,6 +110,7 @@ class ExTap(Note):
 
     def get_extra_parts(self) -> list[str]:
         return [self.animation]
+
 
 @dataclass(frozen=True, kw_only=True, slots=True)
 class Mine(Note):
@@ -85,14 +121,26 @@ class Mine(Note):
 
     @classmethod
     def parse(cls, note_type: NoteType, head: NoteHead) -> Note:
-        return cls(note_type=note_type, measure=head["measure"], offset=head["offset"],
-                   cell=head["cell"], width=head["width"])
+        return cls(
+            note_type=note_type,
+            measure=head["measure"],
+            offset=head["offset"],
+            cell=head["cell"],
+            width=head["width"],
+        )
 
     @classmethod
-    def build(cls, note_type: NoteType, *, measure=0, offset=0, cell=0, width=0,
-              parent=None, **ignored) -> Note:
-        return cls(note_type=note_type, measure=measure, offset=offset,
-                   cell=cell, width=width, parent=parent)
+    def build(
+        cls, note_type: NoteType, *, measure=0, offset=0, cell=0, width=0, parent=None, **ignored
+    ) -> Note:
+        return cls(
+            note_type=note_type,
+            measure=measure,
+            offset=offset,
+            cell=cell,
+            width=width,
+            parent=parent,
+        )
 
     def get_extra_parts(self) -> list[str]:
         return []

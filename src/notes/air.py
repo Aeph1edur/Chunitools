@@ -27,22 +27,45 @@ class Air(Note):
     @classmethod
     def parse(cls, note_type: NoteType, head: NoteHead) -> Note:
         f = parse_schema_fields(note_type, head["data"])
-        return cls(note_type=note_type, measure=head["measure"], offset=head["offset"],
-                   cell=head["cell"], width=head["width"],
-                   target_note=f["target_note"], color=f.get("color", "DEF"),
-                   color_is_explicit="color" in f)
+        return cls(
+            note_type=note_type,
+            measure=head["measure"],
+            offset=head["offset"],
+            cell=head["cell"],
+            width=head["width"],
+            target_note=f["target_note"],
+            color=f.get("color", "DEF"),
+            color_is_explicit="color" in f,
+        )
 
     @classmethod
-    def build(cls, note_type: NoteType, *, measure=0, offset=0, cell=0, width=0,
-              parent=None, target_note=None, **ignored) -> Note:
-        return cls(note_type=note_type, measure=measure, offset=offset,
-                   cell=cell, width=width, parent=parent,
-                   target_note=target_note or "DEF")
+    def build(
+        cls,
+        note_type: NoteType,
+        *,
+        measure=0,
+        offset=0,
+        cell=0,
+        width=0,
+        parent=None,
+        target_note=None,
+        **ignored,
+    ) -> Note:
+        return cls(
+            note_type=note_type,
+            measure=measure,
+            offset=offset,
+            cell=cell,
+            width=width,
+            parent=parent,
+            target_note=target_note or "DEF",
+        )
 
     def get_extra_parts(self) -> list[str]:
         if self.color == "DEF" and not self.color_is_explicit:
             return [self.target_note]
         return [self.target_note, self.color]
+
 
 @dataclass(frozen=True, kw_only=True, slots=True)
 class AirHoldStart(Note):
@@ -59,23 +82,49 @@ class AirHoldStart(Note):
     @classmethod
     def parse(cls, note_type: NoteType, head: NoteHead) -> Note:
         f = parse_schema_fields(note_type, head["data"])
-        return cls(note_type=note_type, measure=head["measure"], offset=head["offset"],
-                   cell=head["cell"], width=head["width"],
-                   target_note=f["target_note"], duration=f["duration"],
-                   color=f.get("color", "DEF"), color_is_explicit="color" in f)
+        return cls(
+            note_type=note_type,
+            measure=head["measure"],
+            offset=head["offset"],
+            cell=head["cell"],
+            width=head["width"],
+            target_note=f["target_note"],
+            duration=f["duration"],
+            color=f.get("color", "DEF"),
+            color_is_explicit="color" in f,
+        )
 
     @classmethod
-    def build(cls, note_type: NoteType, *, measure=0, offset=0, cell=0, width=0,
-              parent=None, duration=384, target_note=None, **ignored) -> Note:
-        return cls(note_type=note_type, measure=measure, offset=offset,
-                   cell=cell, width=width, parent=parent,
-                   target_note=target_note or "DEF", duration=duration)
+    def build(
+        cls,
+        note_type: NoteType,
+        *,
+        measure=0,
+        offset=0,
+        cell=0,
+        width=0,
+        parent=None,
+        duration=384,
+        target_note=None,
+        **ignored,
+    ) -> Note:
+        return cls(
+            note_type=note_type,
+            measure=measure,
+            offset=offset,
+            cell=cell,
+            width=width,
+            parent=parent,
+            target_note=target_note or "DEF",
+            duration=duration,
+        )
 
     def get_extra_parts(self) -> list[str]:
         parts = [self.target_note, str(self.duration)]
         if self.color != "DEF" or self.color_is_explicit:
             parts.append(self.color)
         return parts
+
 
 @dataclass(frozen=True, kw_only=True, slots=True)
 class AirHold(Note):
@@ -91,19 +140,46 @@ class AirHold(Note):
     @classmethod
     def parse(cls, note_type: NoteType, head: NoteHead) -> Note:
         f = parse_schema_fields(note_type, head["data"])
-        return cls(note_type=note_type, measure=head["measure"], offset=head["offset"],
-                   cell=head["cell"], width=head["width"],
-                   target_note=f["target_note"], duration=f["duration"], color=f["color"])
+        return cls(
+            note_type=note_type,
+            measure=head["measure"],
+            offset=head["offset"],
+            cell=head["cell"],
+            width=head["width"],
+            target_note=f["target_note"],
+            duration=f["duration"],
+            color=f["color"],
+        )
 
     @classmethod
-    def build(cls, note_type: NoteType, *, measure=0, offset=0, cell=0, width=0,
-              parent=None, duration=384, target_note=None, **ignored) -> Note:
-        return cls(note_type=note_type, measure=measure, offset=offset,
-                   cell=cell, width=width, parent=parent,
-                   target_note=target_note or "DEF", duration=duration, color="DEF")
+    def build(
+        cls,
+        note_type: NoteType,
+        *,
+        measure=0,
+        offset=0,
+        cell=0,
+        width=0,
+        parent=None,
+        duration=384,
+        target_note=None,
+        **ignored,
+    ) -> Note:
+        return cls(
+            note_type=note_type,
+            measure=measure,
+            offset=offset,
+            cell=cell,
+            width=width,
+            parent=parent,
+            target_note=target_note or "DEF",
+            duration=duration,
+            color="DEF",
+        )
 
     def get_extra_parts(self) -> list[str]:
         return [self.target_note, str(self.duration), self.color]
+
 
 @dataclass(frozen=True, kw_only=True, slots=True)
 class CrashSlide(Note):
@@ -126,28 +202,66 @@ class CrashSlide(Note):
     @classmethod
     def parse(cls, note_type: NoteType, head: NoteHead) -> Note:
         f = parse_schema_fields(note_type, head["data"])
-        return cls(note_type=note_type, measure=head["measure"], offset=head["offset"],
-                   cell=head["cell"], width=head["width"],
-                   crush_interval=f["crush_interval"],
-                   starting_height=f["starting_height"], duration=f["duration"],
-                   end_cell=f["end_cell"], end_width=f["end_width"],
-                   target_height=f["target_height"], color=f["color"])
+        return cls(
+            note_type=note_type,
+            measure=head["measure"],
+            offset=head["offset"],
+            cell=head["cell"],
+            width=head["width"],
+            crush_interval=f["crush_interval"],
+            starting_height=f["starting_height"],
+            duration=f["duration"],
+            end_cell=f["end_cell"],
+            end_width=f["end_width"],
+            target_height=f["target_height"],
+            color=f["color"],
+        )
 
     @classmethod
-    def build(cls, note_type: NoteType, *, measure=0, offset=0, cell=0, width=0,
-              parent=None, duration=384,
-              end_cell=None, end_width=None, **ignored) -> Note:
-        ec, ew = _clamp(cell if end_cell is None else end_cell,
-                        width if end_width is None else end_width)
-        return cls(note_type=note_type, measure=measure, offset=offset,
-                   cell=cell, width=width, parent=parent,
-                   crush_interval=0, starting_height=1.0, duration=duration,
-                   end_cell=ec, end_width=ew, target_height=1.0, color="NON")
+    def build(
+        cls,
+        note_type: NoteType,
+        *,
+        measure=0,
+        offset=0,
+        cell=0,
+        width=0,
+        parent=None,
+        duration=384,
+        end_cell=None,
+        end_width=None,
+        **ignored,
+    ) -> Note:
+        ec, ew = _clamp(
+            cell if end_cell is None else end_cell, width if end_width is None else end_width
+        )
+        return cls(
+            note_type=note_type,
+            measure=measure,
+            offset=offset,
+            cell=cell,
+            width=width,
+            parent=parent,
+            crush_interval=0,
+            starting_height=1.0,
+            duration=duration,
+            end_cell=ec,
+            end_width=ew,
+            target_height=1.0,
+            color="NON",
+        )
 
     def get_extra_parts(self) -> list[str]:
-        return [str(self.crush_interval), f"{self.starting_height:.1f}",
-                str(self.duration), str(self.end_cell), str(self.end_width),
-                f"{self.target_height:.1f}", self.color]
+        return [
+            str(self.crush_interval),
+            f"{self.starting_height:.1f}",
+            str(self.duration),
+            str(self.end_cell),
+            str(self.end_width),
+            f"{self.target_height:.1f}",
+            self.color,
+        ]
+
 
 @dataclass(frozen=True, kw_only=True, slots=True)
 class AirSlide(Note):
@@ -169,29 +283,66 @@ class AirSlide(Note):
     @classmethod
     def parse(cls, note_type: NoteType, head: NoteHead) -> Note:
         f = parse_schema_fields(note_type, head["data"])
-        return cls(note_type=note_type, measure=head["measure"], offset=head["offset"],
-                   cell=head["cell"], width=head["width"],
-                   target_note=f["target_note"], starting_height=f["starting_height"],
-                   duration=f["duration"], end_cell=f["end_cell"],
-                   end_width=f["end_width"], target_height=f["target_height"],
-                   color=f["color"])
+        return cls(
+            note_type=note_type,
+            measure=head["measure"],
+            offset=head["offset"],
+            cell=head["cell"],
+            width=head["width"],
+            target_note=f["target_note"],
+            starting_height=f["starting_height"],
+            duration=f["duration"],
+            end_cell=f["end_cell"],
+            end_width=f["end_width"],
+            target_height=f["target_height"],
+            color=f["color"],
+        )
 
     @classmethod
-    def build(cls, note_type: NoteType, *, measure=0, offset=0, cell=0, width=0,
-              parent=None, duration=384, target_note=None,
-              end_cell=None, end_width=None, **ignored) -> Note:
-        ec, ew = _clamp(cell if end_cell is None else end_cell,
-                        width if end_width is None else end_width)
-        return cls(note_type=note_type, measure=measure, offset=offset,
-                   cell=cell, width=width,
-                   target_note=target_note or "DEF", starting_height=1.0,
-                   duration=duration, end_cell=ec, end_width=ew,
-                   target_height=1.0, color="DEF")
+    def build(
+        cls,
+        note_type: NoteType,
+        *,
+        measure=0,
+        offset=0,
+        cell=0,
+        width=0,
+        parent=None,
+        duration=384,
+        target_note=None,
+        end_cell=None,
+        end_width=None,
+        **ignored,
+    ) -> Note:
+        ec, ew = _clamp(
+            cell if end_cell is None else end_cell, width if end_width is None else end_width
+        )
+        return cls(
+            note_type=note_type,
+            measure=measure,
+            offset=offset,
+            cell=cell,
+            width=width,
+            target_note=target_note or "DEF",
+            starting_height=1.0,
+            duration=duration,
+            end_cell=ec,
+            end_width=ew,
+            target_height=1.0,
+            color="DEF",
+        )
 
     def get_extra_parts(self) -> list[str]:
-        return [self.target_note, f"{self.starting_height:.1f}",
-                str(self.duration), str(self.end_cell), str(self.end_width),
-                f"{self.target_height:.1f}", self.color]
+        return [
+            self.target_note,
+            f"{self.starting_height:.1f}",
+            str(self.duration),
+            str(self.end_cell),
+            str(self.end_width),
+            f"{self.target_height:.1f}",
+            self.color,
+        ]
+
 
 @dataclass(frozen=True, kw_only=True, slots=True)
 class AirSlideStart(Note):
@@ -224,15 +375,47 @@ class AirSlideStart(Note):
         raise NotImplementedError("AirSlideStart is a composite wrapper")
 
     @classmethod
-    def build(cls, note_type: NoteType, *, measure=0, offset=0, cell=0, width=0,
-              parent=None, duration=384, target_note=None,
-              end_cell=None, end_width=None, **ignored) -> Note:
-        step = AirSlide.build(note_type, measure=measure, offset=offset,
-                              cell=cell, width=width,
-                              duration=duration, target_note=target_note or "DEF",
-                              end_cell=end_cell, end_width=end_width)
-        return cls(note_type=note_type, measure=measure, offset=offset,
-                   cell=cell, width=width, parent=parent, steps=(step,))
+    def build(
+        cls,
+        note_type: NoteType,
+        *,
+        measure=0,
+        offset=0,
+        cell=0,
+        width=0,
+        parent=None,
+        duration=384,
+        target_note=None,
+        end_cell=None,
+        end_width=None,
+        **ignored,
+    ) -> Note:
+        ec, ew = _clamp(
+            cell if end_cell is None else end_cell, width if end_width is None else end_width
+        )
+        step = AirSlide(
+            note_type=note_type,
+            measure=measure,
+            offset=offset,
+            cell=cell,
+            width=width,
+            target_note=target_note or "DEF",
+            starting_height=1.0,
+            duration=duration,
+            end_cell=ec,
+            end_width=ew,
+            target_height=1.0,
+            color="DEF",
+        )
+        return cls(
+            note_type=note_type,
+            measure=measure,
+            offset=offset,
+            cell=cell,
+            width=width,
+            parent=parent,
+            steps=(step,),
+        )
 
     def get_extra_parts(self) -> list[str]:
         return []

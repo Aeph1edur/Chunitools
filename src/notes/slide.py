@@ -35,24 +35,51 @@ class SlideTo(Note):
     def parse(cls, note_type: NoteType, head: NoteHead) -> Note:
         f = parse_schema_fields(note_type, head["data"])
         return cls(
-            note_type=note_type, measure=head["measure"], offset=head["offset"],
-            cell=head["cell"], width=head["width"],
-            duration=f["duration"], end_cell=f["end_cell"], end_width=f["end_width"],
-            target_id=f.get("target_id"), animation=f.get("animation"),
+            note_type=note_type,
+            measure=head["measure"],
+            offset=head["offset"],
+            cell=head["cell"],
+            width=head["width"],
+            duration=f["duration"],
+            end_cell=f["end_cell"],
+            end_width=f["end_width"],
+            target_id=f.get("target_id"),
+            animation=f.get("animation"),
             is_visible=note_type.value.endswith("D"),
         )
 
     @classmethod
-    def build(cls, note_type: NoteType, *, measure=0, offset=0, cell=0, width=0,
-              parent=None, duration=384,
-              end_cell=None, end_width=None, **ignored) -> Note:
-        ec, ew = _clamp(cell if end_cell is None else end_cell,
-                        width if end_width is None else end_width)
-        return cls(note_type=note_type, measure=measure, offset=offset,
-                   cell=cell, width=width, parent=parent,
-                   duration=duration, end_cell=ec, end_width=ew,
-                   target_id="", animation=None,
-                   is_visible=note_type in {'SLD', 'SXD'})
+    def build(
+        cls,
+        note_type: NoteType,
+        *,
+        measure=0,
+        offset=0,
+        cell=0,
+        width=0,
+        parent=None,
+        duration=384,
+        end_cell=None,
+        end_width=None,
+        **ignored,
+    ) -> Note:
+        ec, ew = _clamp(
+            cell if end_cell is None else end_cell, width if end_width is None else end_width
+        )
+        return cls(
+            note_type=note_type,
+            measure=measure,
+            offset=offset,
+            cell=cell,
+            width=width,
+            parent=parent,
+            duration=duration,
+            end_cell=ec,
+            end_width=ew,
+            target_id="",
+            animation=None,
+            is_visible=note_type in {"SLD", "SXD"},
+        )
 
     def get_extra_parts(self) -> list[str]:
         parts = [str(self.duration), str(self.end_cell), str(self.end_width)]
@@ -60,6 +87,7 @@ class SlideTo(Note):
         if self.animation is not None:
             parts.append(self.animation)
         return parts
+
 
 @dataclass(frozen=True, kw_only=True, slots=True)
 class Slide(Note):
@@ -85,14 +113,46 @@ class Slide(Note):
         raise NotImplementedError("Slide is a composite wrapper; parse SlideTo instead")
 
     @classmethod
-    def build(cls, note_type: NoteType, *, measure=0, offset=0, cell=0, width=0,
-              parent=None, duration=384,
-              end_cell=None, end_width=None, **ignored) -> Note:
-        step = SlideTo.build(note_type, measure=measure, offset=offset, cell=cell,
-                             width=width, duration=duration,
-                             end_cell=end_cell, end_width=end_width)
-        return cls(note_type=note_type, measure=measure, offset=offset,
-                   cell=cell, width=width, parent=parent, steps=(step,))
+    def build(
+        cls,
+        note_type: NoteType,
+        *,
+        measure=0,
+        offset=0,
+        cell=0,
+        width=0,
+        parent=None,
+        duration=384,
+        end_cell=None,
+        end_width=None,
+        **ignored,
+    ) -> Note:
+        ec, ew = _clamp(
+            cell if end_cell is None else end_cell, width if end_width is None else end_width
+        )
+        step = SlideTo(
+            note_type=note_type,
+            measure=measure,
+            offset=offset,
+            cell=cell,
+            width=width,
+            parent=None,
+            duration=duration,
+            end_cell=ec,
+            end_width=ew,
+            target_id="",
+            animation=None,
+            is_visible=note_type in {"SLD", "SXD"},
+        )
+        return cls(
+            note_type=note_type,
+            measure=measure,
+            offset=offset,
+            cell=cell,
+            width=width,
+            parent=parent,
+            steps=(step,),
+        )
 
     def get_extra_parts(self) -> list[str]:
         return []
