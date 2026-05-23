@@ -413,6 +413,18 @@ def _scaled_span_width(x: float, width: float, factor: float) -> tuple[float, fl
     return x + (width - visual_w) / 2.0, visual_w
 
 
+def _format_time(seconds: float) -> str:
+    """Format seconds as m:ss or h:mm:ss."""
+    if seconds < 0:
+        seconds = 0.0
+    total = int(seconds)
+    h, remainder = divmod(total, 3600)
+    m, s = divmod(remainder, 60)
+    if h > 0:
+        return f"{h}:{m:02d}:{s:02d}"
+    return f"{m}:{s:02d}"
+
+
 def _scrubber_progress(current_pos: float, timeline: ChartTimeline) -> tuple[float, float, float]:
     total_seconds = timeline.time_at_measure(timeline.calculate_max_measure())
     current_seconds = timeline.time_at_measure(current_pos)
@@ -2769,7 +2781,7 @@ class PlayView3D(QWidget):
             int(scrubber_y) + scrubber_h + 2,
         )
 
-        time_text = f"{current_seconds:.2f}s / {total_seconds:.2f}s"
+        time_text = f"{_format_time(current_seconds)} / {_format_time(total_seconds)}"
         painter.setPen(QColor(160, 170, 190))
         f = QFont(FONT_FAMILY, 8)
         painter.setFont(f)
