@@ -15,6 +15,7 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import QWidget
 
+from src.ui.components.play_view import _note_screen_span, DRAW_DEPTH_MAX, DRAW_DEPTH_MIN
 from src.ui.theme import notes as note_theme
 
 if TYPE_CHECKING:
@@ -56,6 +57,7 @@ class NoteDebugOverlay3D(QWidget):
 
         pv = self._play_view
         chart = pv.chart
+        assert chart is not None
         timeline = chart.timeline
         judge_time = timeline.time_at_measure(pv.current_pos) + pv.judge_offset
 
@@ -79,8 +81,6 @@ class NoteDebugOverlay3D(QWidget):
                 depth, pv.height() * 0.10, pv.height() * 0.90
             )
 
-            from src.ui.components.play_view import _note_screen_span
-
             vanish_x = pv.width() / 2.0
             lane_x, note_w = _note_screen_span(note.cell, note.width, vanish_x, scale)
 
@@ -90,7 +90,7 @@ class NoteDebugOverlay3D(QWidget):
             label = note.note_type.value
             color = note_theme.get_note_color(note.note_type)
 
-            if hasattr(note, "duration") and note.duration > 0:
+            if getattr(note, "duration", 0) > 0:
                 label = f"{label}"
 
             text_width = metrics.horizontalAdvance(label)
@@ -130,6 +130,4 @@ class NoteDebugOverlay3D(QWidget):
 
 
 def _depth_in_draw_range_3d(depth: float) -> bool:
-    from src.ui.components.play_view import DRAW_DEPTH_MAX, DRAW_DEPTH_MIN
-
     return DRAW_DEPTH_MIN < depth < DRAW_DEPTH_MAX

@@ -29,8 +29,9 @@ __all__ = [
 ]
 
 # Support for PyInstaller bundles
-if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-    PROJECT_ROOT = Path(sys._MEIPASS)
+meipass = getattr(sys, "_MEIPASS", None)
+if getattr(sys, "frozen", False) and meipass is not None:
+    PROJECT_ROOT = Path(meipass)
 else:
     PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
@@ -79,6 +80,7 @@ def get_sounds_dir(data_root: str | None = None) -> Path:
 @dataclass
 class UserSettings:
     """User-mutable settings that persist in config.yaml."""
+
     data_root: str = ""
     window_width: int = 1920
     window_height: int = 1080
@@ -137,8 +139,7 @@ def resolve_startup_data_root(
             )
 
         LOGGER.warning(
-            "Configured data_root does not exist: %s. "
-            "Prompting for a replacement data directory.",
+            "Configured data_root does not exist: %s. Prompting for a replacement data directory.",
             configured_root,
         )
         return StartupDataRoot(
@@ -165,7 +166,7 @@ def resolve_startup_data_root(
     )
 
 
-def _load_legacy_data_root() -> str:
+def _load_legacy_data_root() -> str:  # noqa: PLR0911
     """Return a usable data root from the old JSON config format, if present."""
     if not LEGACY_USER_CONFIG_PATH.exists():
         return ""
@@ -200,9 +201,7 @@ def _settings_from_mapping(data: object) -> UserSettings:
 
     valid_fields = {field_info.name for field_info in fields(UserSettings)}
     filtered_data = {
-        key: value
-        for key, value in data.items()
-        if isinstance(key, str) and key in valid_fields
+        key: value for key, value in data.items() if isinstance(key, str) and key in valid_fields
     }
     return UserSettings(**filtered_data)
 

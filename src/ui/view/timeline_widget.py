@@ -4,14 +4,17 @@ from __future__ import annotations
 
 import logging
 from math import ceil, floor
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QMouseEvent, QPainter, QPaintEvent, QPen
 from PySide6.QtWidgets import QWidget
 
-from src.core.models import Chart
-from src.engine.timeline import ChartTimeline
 from src.ui import theme
+
+if TYPE_CHECKING:
+    from src.core.models import Chart
+    from src.engine.timeline import ChartTimeline
 
 LOGGER = logging.getLogger("ui.timelineview")
 
@@ -151,10 +154,10 @@ class TimelineWidget(QWidget):
                 )
                 for sub_x, measure, sub_index in self._subdivision_tick_positions(max_measure, w):
                     tick_height = 8 if sub_index % max(1, self._subdivisions // 4) == 0 else 4
-                    if (
-                        measure == playhead_measure
-                        and sub_index in {playhead_subdivision, playhead_subdivision + 1}
-                    ):
+                    if measure == playhead_measure and sub_index in {
+                        playhead_subdivision,
+                        playhead_subdivision + 1,
+                    }:
                         painter.setPen(active_pen)
                         tick_height = h - 2
                     else:

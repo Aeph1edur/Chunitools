@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QButtonGroup,
     QFileDialog,
     QFormLayout,
     QFrame,
@@ -23,6 +24,7 @@ from src.core.option_export import OptionExportError, export_option_folder, veri
 from src.ui.window.widgets import make_command_button, make_section_label
 
 if TYPE_CHECKING:
+    from src.core.models import Chart
     from src.ui.window.window import MainWindow
 
 AUDIO_FILE_FILTER = (
@@ -42,19 +44,19 @@ class MetadataEditor(QFrame):
         self.w = window
         self._syncing_editor_fields = False
         self.metadata_fields: dict[str, QLineEdit] = {}
-        self.editor_stack: QStackedWidget | None = None
-        self._editor_segment_group = None
+        self.editor_stack: QStackedWidget
+        self._editor_segment_group: QButtonGroup
         self.create_option_folder_button: QPushButton | None = None
         self._init_ui()
 
     # ── Quick-access helpers ──
 
     @property
-    def _chart(self):
+    def _chart(self) -> Chart | None:
         return self.w.current_chart
 
     @property
-    def _read_only(self):
+    def _read_only(self) -> bool:
         return self.w._chart_read_only
 
     # ── Init ──
@@ -71,7 +73,6 @@ class MetadataEditor(QFrame):
         segment_layout.setContentsMargins(0, 0, 0, 0)
         segment_layout.setSpacing(4)
         self.editor_stack = QStackedWidget()
-        from PySide6.QtWidgets import QButtonGroup
 
         self._editor_segment_group = QButtonGroup(self)
         self._editor_segment_group.setExclusive(True)
@@ -352,7 +353,7 @@ class MetadataEditor(QFrame):
         base = f"{meta.music_id}_{meta.difficulty}_{meta.level}" if meta.difficulty else f"{meta.music_id}"
         return base.replace(" ", "_")
 
-    def _metadata_bpm_text(self, chart) -> str:
+    def _metadata_bpm_text(self, chart: Chart) -> str:
         if chart.metadata.bpm_def:
             return chart.metadata.bpm_def[0].strip().rstrip(".")
         if chart.bpms and chart.bpms[0].get("bpm"):

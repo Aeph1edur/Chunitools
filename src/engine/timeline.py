@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import bisect
-from collections.abc import Iterator
+import contextlib
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol, TypeAlias
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 from src.core.const import AIR_NOTE_TYPES, NoteType, RenderRole
 from src.notes import (
@@ -16,10 +19,18 @@ from src.notes import (
     Slide,
     SlideTo,
 )
-from src.notes.geometry import note_duration, note_end_cell, note_end_width, note_target_note, note_has_steps
+from src.notes.geometry import (
+    note_duration,
+    note_end_cell,
+    note_end_width,
+    note_get_steps,
+    note_has_steps,
+    note_target_note,
+)
 
 if TYPE_CHECKING:
     from src.core.models import Chart
+    from src.engine.hitsounds import AudibleEvent
 
 __all__ = ["BpmPoint", "ChartTimeline", "TimelineProtocol"]
 
@@ -55,6 +66,7 @@ class TimelineProtocol(Protocol):
     def is_mid_air(self, tick: int, cell: int, width: int) -> bool: ...
     def resolve_anchor(self, note: Note) -> Note | None: ...
     def calculate_max_measure(self) -> int: ...
+
 
 GeometryKey: TypeAlias = tuple[int, int, int, int]
 SlideChainKey: TypeAlias = tuple[str, int, int, int, int]
@@ -171,7 +183,7 @@ class ChartTimeline:
         return self._render_roles.get(note)
 
     def _calculate_audible_ticks(self) -> list[int]:
-        from src.engine.hitsounds import get_audible_ticks
+        from src.engine.hitsounds import get_audible_ticks  # noqa: PLC0415
 
         ticks: list[int] = []
 
@@ -181,15 +193,14 @@ class ChartTimeline:
 
         return sorted(ticks)
 
-    def audible_events(self):
+    def audible_events(self) -> list[AudibleEvent]:
         """Return hitsound events with per-note render timing adjustments."""
-        from src.engine.hitsounds import get_audible_events
+        from src.engine.hitsounds import get_audible_events  # noqa: PLC0415
 
         events = []
         for note in self.chart.notes:
             events.extend(get_audible_events(note, self))
         return sorted(events, key=lambda event: (event.tick, event.delay_seconds))
-
 
     def _apply_structural_rules(self) -> None:
         """Calculate render helper fields."""
@@ -226,7 +237,7 @@ class ChartTimeline:
         for note in self.chart.notes:
             yield note
             if note_has_steps(note):
-                yield from note.steps
+                yield from note_get_steps(note)
 
     def _cache_note_layout(self, note: Note) -> None:
         abs_pos = note.measure + note.offset / self.resolution
@@ -295,9 +306,7 @@ class ChartTimeline:
     def _classify_slide_roles(self) -> None:
         """Assign slide render roles from structural continuity."""
         slide_notes = [
-            note
-            for note in self._iter_notes_with_steps()
-            if note.note_type in SLIDE_CHAIN_TYPES
+            note for note in self._iter_notes_with_steps() if note.note_type in SLIDE_CHAIN_TYPES
         ]
 
         start_map: dict[SlideChainKey, list[Note]] = {}
@@ -336,9 +345,7 @@ class ChartTimeline:
         for note in slide_notes:
             self._chain_root_map[note] = self._find_slide_chain_root(note, end_map)
 
-    def _find_slide_chain_root(
-        self, note: Note, end_map: dict[SlideChainKey, list[Note]]
-    ) -> Note:
+    def _find_slide_chain_root(self, note: Note, end_map: dict[SlideChainKey, list[Note]]) -> Note:
         current = note
         visited = {id(current)}
 
@@ -378,7 +385,7 @@ class ChartTimeline:
 
         return None
 
-    def _resolve_note_anchor(self, note: Note) -> str | None:
+    def _resolve_note_anchor(self, note: Note) -> str | None:  # noqa: PLR0911
         if note.parent is not None:
             self._anchors[note] = note.parent
             return None
@@ -426,20 +433,15 @@ class ChartTimeline:
 
         default_bpm = 120.0
         if self.chart.metadata.bpm_def:
-            try:
+            with contextlib.suppress(ValueError, IndexError):
                 default_bpm = float(self.chart.metadata.bpm_def[0])
-            except (ValueError, IndexError):
-                pass
 
         points: list[BpmPoint] = []
         current_tick = 0
         current_time = 0.0
         current_bpm = default_bpm
 
-        if (
-            not raw_bpms
-            or self.to_tick(raw_bpms[0]["measure"], raw_bpms[0]["offset"]) > 0
-        ):
+        if not raw_bpms or self.to_tick(raw_bpms[0]["measure"], raw_bpms[0]["offset"]) > 0:
             points.append(BpmPoint(0, current_bpm, 0.0, 0.0))
 
         for entry in raw_bpms:
@@ -481,16 +483,12 @@ class ChartTimeline:
 
     def bpm_at(self, tick: int) -> float:
         """Get the BPM active at a specific tick."""
-        index = bisect.bisect_right(
-            self._bpm_points, tick, key=lambda point: point.tick
-        )
+        index = bisect.bisect_right(self._bpm_points, tick, key=lambda point: point.tick)
         return self._bpm_points[max(0, index - 1)].bpm
 
     def bpm_at_pos(self, abs_pos: float) -> float:
         """Get the BPM active at an absolute spatial position."""
-        index = bisect.bisect_right(
-            self._bpm_points, abs_pos, key=lambda point: point.abs_pos
-        )
+        index = bisect.bisect_right(self._bpm_points, abs_pos, key=lambda point: point.abs_pos)
         return self._bpm_points[max(0, index - 1)].bpm
 
     def time_at(self, tick: int) -> float:
@@ -500,9 +498,7 @@ class ChartTimeline:
     def time_at_measure(self, abs_pos: float) -> float:
         """Get the absolute time in seconds at a fractional measure position."""
         clamped_pos = max(0.0, abs_pos)
-        index = bisect.bisect_right(
-            self._bpm_points, clamped_pos, key=lambda point: point.abs_pos
-        )
+        index = bisect.bisect_right(self._bpm_points, clamped_pos, key=lambda point: point.abs_pos)
         point = self._bpm_points[max(0, index - 1)]
 
         delta_pos = clamped_pos - point.abs_pos
@@ -514,9 +510,7 @@ class ChartTimeline:
     def pos_at_time(self, seconds: float) -> float:
         """Get the absolute chart position in measures at a song time."""
         clamped_seconds = max(0.0, seconds)
-        index = bisect.bisect_right(
-            self._bpm_points, clamped_seconds, key=lambda point: point.time
-        )
+        index = bisect.bisect_right(self._bpm_points, clamped_seconds, key=lambda point: point.time)
         point = self._bpm_points[max(0, index - 1)]
         delta_seconds = clamped_seconds - point.time
         if delta_seconds <= 0.0:
@@ -596,9 +590,7 @@ class ChartTimeline:
     def _anchor_candidates(self, note: Note, required_type: NoteType) -> list[Note]:
         tick = self.note_tick(note)
         raw_matches = []
-        required_types = TARGET_NOTE_FAMILIES.get(
-            required_type, frozenset({required_type})
-        )
+        required_types = TARGET_NOTE_FAMILIES.get(required_type, frozenset({required_type}))
         for candidate in self._iter_notes_with_steps():
             if (
                 candidate is note
@@ -607,14 +599,8 @@ class ChartTimeline:
             ):
                 continue
 
-            for anchor_tick, anchor_cell, anchor_width in self._exact_anchor_points(
-                candidate
-            ):
-                if (
-                    anchor_tick != tick
-                    or anchor_cell != note.cell
-                    or anchor_width != note.width
-                ):
+            for anchor_tick, anchor_cell, anchor_width in self._exact_anchor_points(candidate):
+                if anchor_tick != tick or anchor_cell != note.cell or anchor_width != note.width:
                     continue
                 if candidate not in raw_matches:
                     raw_matches.append(candidate)
@@ -624,9 +610,7 @@ class ChartTimeline:
         matches = []
         for candidate in preferred_matches:
             anchor = (
-                candidate
-                if isinstance(note, Air)
-                else self._canonical_anchor_candidate(candidate)
+                candidate if isinstance(note, Air) else self._canonical_anchor_candidate(candidate)
             )
             if anchor not in matches:
                 matches.append(anchor)
@@ -641,7 +625,7 @@ class ChartTimeline:
         if exact_matches:
             return exact_matches
 
-        step_matches = [
+        step_matches: list[Note] = [
             candidate for candidate in candidates if isinstance(candidate, (SlideTo, AirSlide))
         ]
         if step_matches:

@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from PySide6.QtCore import QRectF, Qt
-from PySide6.QtGui import QBrush, QLinearGradient, QPainter, QPen
+from PySide6.QtGui import QBrush, QLinearGradient, QPainter
 
 from src.core.const import NoteType
-
-if TYPE_CHECKING:
-    pass
+from src.ui.view.renderer.notes.support import RendererMixinSupport
 
 
-class HoldRendererMixin:
+class HoldRendererMixin(RendererMixinSupport):
     def _draw_hold_foreground(
         self,
         painter: QPainter,
@@ -21,15 +19,12 @@ class HoldRendererMixin:
     ) -> None:
         if not self.visible_note_types.get(note.note_type.value, True):
             return
-        start_color = (
-            self.colors.hold
-            if note.note_type == NoteType.HLD
-            else self.colors.ex_tap
-        )
+        start_color = self.colors.hold if note.note_type == NoteType.HLD else self.colors.ex_tap
         self._draw_tap(painter, note, current_position, timeline, start_color)
-        y_end, (x_pos, width) = self.projection.y(
-            timeline.note_abs_end_pos(note), current_position
-        ), (self.projection.x(note.cell), self.projection.w(note.width))
+        y_end, (x_pos, width) = (
+            self.projection.y(timeline.note_abs_end_pos(note), current_position),
+            (self.projection.x(note.cell), self.projection.w(note.width)),
+        )
         rect = QRectF(
             x_pos, y_end - self.constants.HEAD_HEIGHT / 2, width, self.constants.HEAD_HEIGHT
         )

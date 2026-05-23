@@ -1,12 +1,16 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QRectF
-from PySide6.QtGui import QPainter
+
+if TYPE_CHECKING:
+    from PySide6.QtGui import QPainter
+
+from src.ui.view.renderer.notes.support import RendererMixinSupport
 
 
-class FlickRendererMixin:
+class FlickRendererMixin(RendererMixinSupport):
     def _draw_flick(
         self,
         painter: QPainter,
@@ -16,12 +20,12 @@ class FlickRendererMixin:
     ) -> None:
         if not self.visible_note_types.get(note.note_type.value, True):
             return
-        y, x, w = self.projection.y(
-            timeline.note_abs_pos(note), current_position
-        ), self.projection.x(note.cell), self.projection.w(note.width)
-        rect = QRectF(
-            x, y - self.constants.HEAD_HEIGHT / 2, w, self.constants.HEAD_HEIGHT
+        y, x, w = (
+            self.projection.y(timeline.note_abs_pos(note), current_position),
+            self.projection.x(note.cell),
+            self.projection.w(note.width),
         )
+        rect = QRectF(x, y - self.constants.HEAD_HEIGHT / 2, w, self.constants.HEAD_HEIGHT)
 
         base_color = self.colors.flick_base
         fg_color = self.colors.flick_foreground

@@ -9,8 +9,9 @@ from PySide6.QtWidgets import QApplication
 from src.core.read import load_chart_file
 from src.engine.timeline import ChartTimeline
 from src.ui.view.chart_renderer import ChartRenderer
+from src.ui.view.export import export_to_image
 from src.ui.view.projection import ViewProjection
-from src.ui.window.export import _safe_filename, export_to_image
+from src.ui.window.export import _safe_filename
 
 USAGE = "Usage: python src/cli/export_chart.py <chart_path> [output_path]"
 
@@ -30,7 +31,7 @@ def main() -> int:
         return 1
 
     chart_path = sys.argv[1]
-    app = QApplication.instance() or QApplication(sys.argv)
+    _ = QApplication.instance() or QApplication(sys.argv)
 
     try:
         chart = load_chart_file(chart_path)

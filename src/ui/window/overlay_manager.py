@@ -52,7 +52,7 @@ class OverlayManager:
     def _can_position(self) -> bool:
         vis = getattr(self.window, "visualizer", None)
         pv = getattr(self.window, "play_view", None)
-        return (
+        return bool(
             (vis and vis.isVisible() and vis.width() >= 100)
             or (pv and pv.isVisible() and pv.width() >= 100)
         )

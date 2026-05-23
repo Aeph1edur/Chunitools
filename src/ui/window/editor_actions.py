@@ -1,19 +1,20 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QMenu
 
 from src.core.const import AirTraceColor, NoteType
 from src.core.editor import add_note, make_note, snap_abs_pos
-from src.notes import AirSlideStart, Note, Slide
+from src.notes import AirSlideStart, CrashSlide, Note, Slide
 from src.ui import theme
 from src.ui.theme.notes import TRACE_COLORS, get_note_color
 
 if TYPE_CHECKING:
+    from src.core.models import Chart
     from src.ui.window.window import MainWindow
 
 
@@ -32,27 +33,27 @@ class NoteEditor:
 
     def __init__(self, window: MainWindow) -> None:
         self.w = window
-        from src.ui.window.slide_editor import SlideEditor
-        from src.ui.window.note_history import NoteHistory
-        from src.ui.window.source_opener import SourceFileOpener
+        from src.ui.window.slide_editor import SlideEditor  # noqa: PLC0415
+        from src.ui.window.note_history import NoteHistory  # noqa: PLC0415
+        from src.ui.window.source_opener import SourceFileOpener  # noqa: PLC0415
         self.slides = SlideEditor(window)
         self.history = NoteHistory(window)
         self.source = SourceFileOpener(window)
 
     @property
-    def _chart(self):
+    def _chart(self) -> Chart | None:
         return self.w.current_chart
 
     @property
-    def _read_only(self):
+    def _read_only(self) -> bool:
         return self.w._chart_read_only
 
     @property
-    def _dirty(self):
+    def _dirty(self) -> bool:
         return self.w._chart_dirty
 
     @_dirty.setter
-    def _dirty(self, v):
+    def _dirty(self, v: bool) -> None:
         self.w._chart_dirty = v
 
     # ── Place note (single click) ──
@@ -107,17 +108,21 @@ class NoteEditor:
         ec = max(0, min(max(0, 16 - w), int(end_cell)))
 
         if self.w._editor_note_type in GROUND_SLIDE_TYPES:
-            r = self.slides.append_ground(st, sc, w, sm, so, duration, ec)
-            if r is not None:
-                self.history.push("replace", [r.steps[0], r])
-                self._finish_placement(r, f"Extended {r.note_type.value} at {sm}:{so}.")
+            ground_result = self.slides.append_ground(st, sc, w, sm, so, duration, ec)
+            if ground_result is not None:
+                self.history.push("replace", [ground_result.steps[0], ground_result])
+                self._finish_placement(
+                    ground_result, f"Extended {ground_result.note_type.value} at {sm}:{so}."
+                )
                 return
 
         if self.w._editor_note_type in AIR_SLIDE_TYPES:
-            r = self.slides.append_air(st, sc, w, sm, so, duration, ec)
-            if r is not None:
-                self.history.push("replace", [r.steps[0], r])
-                self._finish_placement(r, f"Extended {r.note_type.value} at {sm}:{so}.")
+            air_result = self.slides.append_air(st, sc, w, sm, so, duration, ec)
+            if air_result is not None:
+                self.history.push("replace", [air_result.steps[0], air_result])
+                self._finish_placement(
+                    air_result, f"Extended {air_result.note_type.value} at {sm}:{so}."
+                )
                 return
 
         note = make_note(self.w._editor_note_type,
@@ -147,7 +152,7 @@ class NoteEditor:
     def delete_selected(self) -> None:
         if not self._chart or self._read_only:
             return
-        from src.core.editor import remove_notes
+        from src.core.editor import remove_notes  # noqa: PLC0415
         removed = remove_notes(self._chart, list(self.w.visualizer.selected_notes))
         if not removed:
             return
@@ -204,7 +209,7 @@ class NoteEditor:
 
     # ── Context menu ──
 
-    def show_note_context_menu(self, note: Note, global_pos) -> None:
+    def show_note_context_menu(self, note: Note, global_pos: QPoint) -> None:
         menu = QMenu(self.w)
         act = menu.addAction("Open in Chart File")
         act.triggered.connect(lambda _=False: self.source.open(note))
@@ -240,7 +245,9 @@ class NoteEditor:
             return
         if getattr(note, "color", None) == color_code:
             return
-        replacement = replace(note, color=color_code)
+        if not isinstance(note, CrashSlide):
+            return
+        replacement = cast("Note", replace(note, color=color_code))
         self.slides.replace_note(note, replacement)
         self.history.push("replace", [note, replacement])
         self._finish_history(f"Changed ALD color to {color_code}.", selected_note=replacement)

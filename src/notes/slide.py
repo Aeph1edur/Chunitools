@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
 from src.notes.base import Note
 
 @dataclass(frozen=True, kw_only=True, slots=True)
@@ -10,8 +9,8 @@ class SlideTo(Note):
     duration: int
     end_cell: int
     end_width: int
-    target_id: Optional[str] = None
-    animation: Optional[str] = None
+    target_id: str | None = None
+    animation: str | None = None
     is_visible: bool = True
 
     def get_extra_parts(self) -> list[str]:

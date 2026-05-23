@@ -38,7 +38,7 @@ def get_audible_ticks(note: "Note", timeline: "ChartTimeline") -> list[int]:
     return [event.tick for event in get_audible_events(note, timeline)]
 
 
-def get_audible_events(note: "Note", timeline: "ChartTimeline") -> list[AudibleEvent]:
+def get_audible_events(note: "Note", timeline: "ChartTimeline") -> list[AudibleEvent]:  # noqa: PLR0911
     """Return hitsound events where this note should pass the judgement line."""
     if isinstance(note, Hold):
         return [

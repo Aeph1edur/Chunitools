@@ -5,13 +5,15 @@ from __future__ import annotations
 import hashlib
 from copy import deepcopy
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, cast
 
 from PyCriCodecsEx.utf import UTF, UTFBuilder
 
-from src.audio.codecs.hca import HcaInfo
+if TYPE_CHECKING:
+    from src.audio.codecs.hca import HcaInfo
 
 
-def retarget_acb_template(
+def retarget_acb_template(  # noqa: PLR0913
     template_path: str | Path,
     destination_path: str | Path,
     *,
@@ -41,7 +43,7 @@ def retarget_acb_template(
     rebuilt = UTFBuilder(
         payload,
         encoding=template.encoding,
-        table_name=template.table_name,
+        table_name=cast("str", template.table_name),
     ).bytes()
     destination = Path(destination_path)
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -49,12 +51,12 @@ def retarget_acb_template(
     return destination
 
 
-def _set(row: dict, key: str, value: object) -> None:
+def _set(row: dict[str, Any], key: str, value: object) -> None:
     value_type, _old_value = row[key]
     row[key] = (value_type, value)
 
 
-def _set_stream_awb_header(row: dict, awb_header: bytes) -> None:
+def _set_stream_awb_header(row: dict[str, Any], awb_header: bytes) -> None:
     table_name, rows = row["StreamAwbAfs2Header"]
     if not rows:
         return
@@ -63,7 +65,7 @@ def _set_stream_awb_header(row: dict, awb_header: bytes) -> None:
     row["StreamAwbAfs2Header"] = (table_name, rows)
 
 
-def _set_stream_awb_hash(row: dict, music_name: str, awb_data: bytes) -> None:
+def _set_stream_awb_hash(row: dict[str, Any], music_name: str, awb_data: bytes) -> None:
     if "StreamAwbHash" not in row:
         return
     table_name, rows = row["StreamAwbHash"]
@@ -76,7 +78,7 @@ def _set_stream_awb_hash(row: dict, music_name: str, awb_data: bytes) -> None:
     row["StreamAwbHash"] = (table_name, rows)
 
 
-def _set_waveform(row: dict, hca_info: HcaInfo) -> None:
+def _set_waveform(row: dict[str, Any], hca_info: HcaInfo) -> None:
     table_name, waveforms = row["WaveformTable"]
     if not waveforms:
         raise ValueError("ACB template has no waveform rows")
@@ -95,7 +97,7 @@ def _set_waveform(row: dict, hca_info: HcaInfo) -> None:
     row["WaveformTable"] = (table_name, [waveform])
 
 
-def _set_cue_lengths(row: dict, hca_info: HcaInfo) -> None:
+def _set_cue_lengths(row: dict[str, Any], hca_info: HcaInfo) -> None:
     if hca_info.sample_rate <= 0 or "CueTable" not in row:
         return
     length_ms = round(hca_info.sample_count / hca_info.sample_rate * 1000)

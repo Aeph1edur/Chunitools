@@ -9,11 +9,8 @@ import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from src.core.images import SUPPORTED_JACKET_SOURCE_SUFFIXES, convert_jacket_image_to_dds
-from src.core.models import Chart
-from src.core.read import parse_c2s
-from src.core.write import save_chart_file, serialize_music_xml
 from src.audio.codecs import (
     Afs2Entry,
     HcaEncodeError,
@@ -24,6 +21,12 @@ from src.audio.codecs import (
     read_hca_info,
     retarget_acb_template,
 )
+from src.core.images import SUPPORTED_JACKET_SOURCE_SUFFIXES, convert_jacket_image_to_dds
+from src.core.read import parse_c2s
+
+if TYPE_CHECKING:
+    from src.core.models import Chart
+from src.core.write import save_chart_file, serialize_music_xml
 
 
 class AudioExportStrategy(ABC):
@@ -84,7 +87,9 @@ class EncodeAudioStrategy(AudioExportStrategy):
             temp_dir = Path(temp_dir_raw)
             try:
                 hca_path = encode_source_to_hca(
-                    source, temp_dir / f"music{chart.metadata.music_id}.hca", key=hca_key,
+                    source,
+                    temp_dir / f"music{chart.metadata.music_id}.hca",
+                    key=hca_key,
                 )
             except HcaEncodeError as exc:
                 raise OptionExportError(str(exc)) from exc
@@ -92,7 +97,8 @@ class EncodeAudioStrategy(AudioExportStrategy):
             awb_data = build_afs2([Afs2Entry(id=0, data=hca_path.read_bytes())])
             awb_dest.write_bytes(awb_data)
             retarget_acb_template(
-                template_acb, acb_dest,
+                template_acb,
+                acb_dest,
                 music_id=chart.metadata.music_id,
                 hca_info=hca_info,
                 awb_data=awb_data,
@@ -132,7 +138,7 @@ class OptionFolderValidation:
         return not self.errors
 
 
-def export_option_folder(
+def export_option_folder(  # noqa: PLR0913
     chart: Chart,
     output_root: str | Path,
     *,

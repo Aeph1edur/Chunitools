@@ -21,7 +21,7 @@ class KeyHandler:
     def __init__(self, window: MainWindow) -> None:
         self.window = window
 
-    def handle_key(self, event: QKeyEvent) -> bool:
+    def handle_key(self, event: QKeyEvent) -> bool:  # noqa: PLR0911
         """Process a key press. Return True if handled."""
         k = event.key()
         mods = event.modifiers()
@@ -61,7 +61,7 @@ class KeyHandler:
             )
             return True
 
-        if k == Qt.Key.Key_A and mods & Qt.ControlModifier:
+        if k == Qt.Key.Key_A and mods & Qt.KeyboardModifier.ControlModifier:
             self._select_all_notes()
             return True
 

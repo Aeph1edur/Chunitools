@@ -11,7 +11,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.core.config import settings
 from src.ui import theme
 
 if TYPE_CHECKING:

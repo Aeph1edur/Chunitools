@@ -7,7 +7,7 @@ from PySide6.QtGui import QColor
 from functools import lru_cache
 
 @lru_cache(maxsize=128)
-def qt(value: str | tuple) -> QColor:
+def qt(value: str | tuple[int, int, int] | tuple[int, int, int, int]) -> QColor:
     """Create a QColor from a theme token."""
     if isinstance(value, tuple):
         if len(value) == 3:
@@ -143,5 +143,4 @@ LANE_LINE = (69, 69, 69)
 TIMELINE_LINE = (110, 110, 110)
 ATTACHMENT_WARNING = (255, 69, 58)
 WARNING_RED = EMBER_RED
-
 

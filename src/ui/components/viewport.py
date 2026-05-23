@@ -16,8 +16,6 @@ from PySide6.QtWidgets import QScrollBar, QWidget
 
 from src.core.config import DEFAULT_SCROLL_SPEED
 from src.core.const import AIR_NOTE_TYPES, NoteType
-from src.core.models import Chart
-from src.notes import Note
 from src.ui import theme
 from src.ui.components.note_debug_overlay import NoteDebugOverlay
 from src.ui.theme.notes import get_note_color
@@ -30,7 +28,9 @@ from src.ui.view.export import (
 from src.ui.view.projection import ViewProjection
 
 if TYPE_CHECKING:
+    from src.core.models import Chart
     from src.engine.playback import PlaybackController
+    from src.notes import Note
 
 
 SCROLLBAR_WIDTH = 10
@@ -64,7 +64,7 @@ class ChartViewport(QWidget):
     note_size_drag_place_requested = Signal(float, int, int)
     note_drag_place_requested = Signal(float, int, float, int)
 
-    def __init__(self, parent: QWidget | None = None, playback_controller: PlaybackController | None = None) -> None:
+    def __init__(self, parent: QWidget | None = None, playback_controller: PlaybackController | None = None) -> None:  # noqa: PLR0915
         super().__init__(parent)
         self.playback_controller = playback_controller
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
@@ -360,7 +360,7 @@ class ChartViewport(QWidget):
             self.note_debug_overlay.setGeometry(self.rect())
         self.resized.emit()
 
-    def mousePressEvent(self, event: QMouseEvent) -> None:
+    def mousePressEvent(self, event: QMouseEvent) -> None:  # noqa: PLR0911, PLR0912
         self.setFocus(Qt.FocusReason.MouseFocusReason)
         if event.button() == Qt.MouseButton.LeftButton:
             if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
@@ -500,8 +500,7 @@ class ChartViewport(QWidget):
                 self.setMouseTracking(False)
                 self.setCursor(Qt.CursorShape.ArrowCursor)
                 return
-        if event.button() == Qt.MouseButton.RightButton:
-            if self._selection_drag_origin is not None:
+        if event.button() == Qt.MouseButton.RightButton and self._selection_drag_origin is not None:
                 self._apply_selection_rect()
                 self._reset_selection_drag_state()
                 self.update()
@@ -570,7 +569,7 @@ class ChartViewport(QWidget):
 
         if self.show_judgment:
             painter.setPen(QPen(theme.qt(theme.ACCENT), 4)) # Increased width for better visibility
-            painter.drawLine(0, 0, chart_width, 0)
+            painter.drawLine(0, 0, int(chart_width), 0)
 
         if self._placement_drag_origin and self._placement_drag_current:
             self._draw_placement_drag_preview(painter, render_pos)
@@ -581,9 +580,9 @@ class ChartViewport(QWidget):
         for note in self.selected_notes:
             self._draw_note_selection_outline(painter, note, self.projection, render_pos)
 
-    def _paint_column_mode(self, painter: QPainter, view_width: int, view_height: int, chart_width: int, render_pos: float) -> None:
+    def _paint_column_mode(self, painter: QPainter, view_width: int, view_height: int, chart_width: float, render_pos: float) -> None:
         col_full_width = chart_width + self.column_spacing
-        num_cols = max(1, view_width // col_full_width)
+        num_cols = int(max(1, view_width // col_full_width))
 
         # In column mode, render_pos represents the position we are viewing
         start_measure = int(render_pos)
@@ -606,7 +605,7 @@ class ChartViewport(QWidget):
 
             # Get notes for these measures
             col_notes = []
-            for m in range(m_start, m_end + 1):
+            for m in range(int(m_start), int(m_end) + 1):
                 col_notes.extend(self.notes_by_measure.get(m, []))
 
             self.painter_engine.draw_notes(painter, col_notes, float(m_start))
@@ -875,7 +874,7 @@ class ChartViewport(QWidget):
         return visible
 
     def _draw_selection_box(
-        self, painter: QPainter, offset_x: int, view_height: int
+        self, painter: QPainter, offset_x: float, view_height: int
     ) -> None:
         rect = self._selection_rect()
         painter.save()

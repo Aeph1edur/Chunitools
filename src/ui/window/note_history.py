@@ -5,9 +5,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from src.core.editor import add_note, remove_notes
-from src.notes import Note
 
 if TYPE_CHECKING:
+    from src.core.models import Chart
+    from src.notes import Note
     from src.ui.window.window import MainWindow
 
 
@@ -18,11 +19,11 @@ class NoteHistory:
         self.w = window
 
     @property
-    def _chart(self):
+    def _chart(self) -> Chart | None:
         return self.w.current_chart
 
     @property
-    def _read_only(self):
+    def _read_only(self) -> bool:
         return self.w._chart_read_only
 
     # ── Stack access ──
@@ -48,9 +49,12 @@ class NoteHistory:
     def undo(self) -> tuple[str, list[Note]] | None:
         if not self._undo or self._read_only:
             return None
+        chart = self._chart
+        if chart is None:
+            return None
         operation, notes = self._undo.pop()
         if operation == "add":
-            removed = remove_notes(self._chart, notes)
+            removed = remove_notes(chart, notes)
             if not removed:
                 self._sync()
                 return None
@@ -66,10 +70,13 @@ class NoteHistory:
     def redo(self) -> tuple[str, list[Note]] | None:
         if not self._redo or self._read_only:
             return None
+        chart = self._chart
+        if chart is None:
+            return None
         operation, notes = self._redo.pop()
         if operation == "add":
             for n in notes:
-                add_note(self._chart, n)
+                add_note(chart, n)
             self._undo.append((operation, notes))
             return "redo_add", [notes[-1]]
         if operation == "replace" and len(notes) == 2:

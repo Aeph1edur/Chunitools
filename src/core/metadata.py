@@ -3,25 +3,30 @@
 from __future__ import annotations
 
 import re
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from src.core.const import Command
 from src.core.library_scanner import DataScanner
-from src.core.library_models import MetadataPreview
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from src.core.library_models import MetadataPreview
+    from src.core.models import Chart
 
 __all__ = ["DataScanner", "fast_get_metadata", "load_chart_file", "parse_c2s"]
 
 
-def parse_c2s(content: str):
+def parse_c2s(content: str) -> Chart:
     """Compatibility wrapper for the full .c2s parser."""
-    from src.core.read import parse_c2s as parse
+    from src.core.read import parse_c2s as parse  # noqa: PLC0415
 
     return parse(content)
 
 
-def load_chart_file(path: str | Path):
+def load_chart_file(path: str | Path) -> Chart:
     """Compatibility wrapper for chart loading."""
-    from src.core.read import load_chart_file as load
+    from src.core.read import load_chart_file as load  # noqa: PLC0415
 
     return load(path)
 
@@ -29,7 +34,7 @@ def load_chart_file(path: str | Path):
 def _process_metadata_line(
     line: str,
     meta: MetadataPreview,
-    patterns: tuple[re.Pattern, ...],
+    patterns: tuple[re.Pattern[str], ...],
 ) -> int:
     """Extract metadata from a single line using provided patterns."""
     bpm_pattern, creator_pattern, version_pattern = patterns
@@ -51,9 +56,7 @@ def _process_metadata_line(
     return 0
 
 
-def _try_extract_metadata(
-    file_path: str, encoding_name: str, meta: MetadataPreview
-) -> bool:
+def _try_extract_metadata(file_path: str, encoding_name: str, meta: MetadataPreview) -> bool:
     """Attempt to extract metadata from a file using a specific encoding."""
     patterns = (
         re.compile(rf"^{Command.BPM_DEF.value}\s+(.*)$"),
@@ -63,7 +66,7 @@ def _try_extract_metadata(
     found_count = 0
     try:
         with open(file_path, encoding=encoding_name) as file_handle:
-            for _ in range(100): # Scan only the first 100 lines for speed
+            for _ in range(100):  # Scan only the first 100 lines for speed
                 line = file_handle.readline()
                 if not line:
                     break
@@ -78,13 +81,13 @@ def _try_extract_metadata(
 def fast_get_metadata(file_path: str | Path) -> MetadataPreview:
     """
     Quickly extract BPM_DEF, CREATOR and VERSION without full chart parsing.
-    
+
     This is useful for showing previews in the song picker or library scanner
     where parsing thousands of full charts would be too slow.
     """
     meta: MetadataPreview = {"bpm_def": None, "creator": None, "version": None}
     encodings = ["utf-8", "cp932", "shift_jis"]
-    
+
     file_path_str = str(file_path)
 
     for encoding_name in encodings:

@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from PySide6.QtCore import QPointF, Qt
 from PySide6.QtGui import QPainter, QPen
 
 from src.core.const import NoteType
 from src.ui.theme.notes import get_note_color
+from src.ui.view.renderer.notes.support import RendererMixinSupport
 
 
-class HeavenHoldRendererMixin:
+class HeavenHoldRendererMixin(RendererMixinSupport):
     def _draw_heaven_hold_background(
         self,
         painter: QPainter,
@@ -40,11 +40,7 @@ class HeavenHoldRendererMixin:
             getattr(note, "end_width", note.width),
             end,
         )
-        color = (
-            self.colors.ex_tap
-            if note.note_type == NoteType.HHX
-            else self.colors.hold
-        )
+        color = self.colors.ex_tap if note.note_type == NoteType.HHX else self.colors.hold
         self._draw_rounded_rect(painter, start_rect, color)
         self._draw_tap_symbol_for_type(
             painter,

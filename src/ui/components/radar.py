@@ -5,13 +5,17 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
+from typing import TYPE_CHECKING
+
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QPainter, QPaintEvent, QPen, QPolygonF
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
-from src.core.models import Chart
-from src.notes import Note
 from src.core.const import NoteType
+
+if TYPE_CHECKING:
+    from src.core.models import Chart
+    from src.notes import Note
 from src.ui import theme
 
 _MAX_VALUE_FALLBACK = 1.0
@@ -76,7 +80,7 @@ class NoteDensityRadar(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         bounds = self.rect().adjusted(10, 10, -10, -10)
-        center = bounds.center()
+        center = QPointF(bounds.center())
         radius = min(bounds.width(), bounds.height()) * 0.25
         if radius <= 0:
             return

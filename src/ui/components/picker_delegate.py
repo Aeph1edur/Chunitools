@@ -6,7 +6,7 @@ from functools import lru_cache
 from typing import cast
 
 from PIL import Image
-from PySide6.QtCore import QEvent, QModelIndex, QPoint, QRectF, QSize, Qt
+from PySide6.QtCore import QAbstractItemModel, QEvent, QModelIndex, QPersistentModelIndex, QPoint, QRectF, QSize, Qt
 from PySide6.QtGui import (
     QColor,
     QFont,
@@ -17,7 +17,7 @@ from PySide6.QtGui import (
     QPen,
     QPixmap,
 )
-from PySide6.QtWidgets import QStyle, QStyledItemDelegate, QStyleOptionViewItem
+from PySide6.QtWidgets import QStyle, QStyledItemDelegate, QStyleOptionViewItem, QWidget
 
 from src.core.read import SongInfo
 from src.core.read import fast_get_metadata, MetadataPreview
@@ -82,7 +82,7 @@ def load_dds_to_pixmap(path: str) -> QPixmap:
 
 
 class SongDelegate(QStyledItemDelegate):
-    def __init__(self, parent=None):
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._name_font = QFont(theme.FONT_UI, 12, QFont.Weight.Bold)
         self._artist_font = QFont(theme.FONT_UI, 10, QFont.Weight.Normal)
@@ -90,10 +90,10 @@ class SongDelegate(QStyledItemDelegate):
         self._level_font = QFont(theme.FONT_MONO, 10, QFont.Weight.Medium)
 
     def editorEvent(
-        self, event: QEvent, model, option: QStyleOptionViewItem, index: QModelIndex
+        self, event: QEvent, model: QAbstractItemModel, option: QStyleOptionViewItem, index: QModelIndex | QPersistentModelIndex
     ) -> bool:
         if event.type() == QEvent.Type.MouseButtonPress:
-            mevent = cast(QMouseEvent, event)
+            mevent = cast("QMouseEvent", event)
             if mevent.button() == Qt.MouseButton.LeftButton:
                 song = index.data(Qt.ItemDataRole.UserRole)
                 if not isinstance(song, SongInfo):
@@ -126,8 +126,9 @@ class SongDelegate(QStyledItemDelegate):
 
                     if box_rect.contains(mevent.position()):
                         view = option.widget
-                        if hasattr(view, "on_difficulty_clicked"):
-                            view.on_difficulty_clicked(fumen.file_path, song)
+                        on_clicked = getattr(view, "on_difficulty_clicked", None)
+                        if on_clicked is not None:
+                            on_clicked(fumen.file_path, song)
                         return True
 
                     marker_x += box_w + _LEVEL_CHIP_GAP
@@ -169,20 +170,20 @@ class SongDelegate(QStyledItemDelegate):
             marker_x += box_w + _LEVEL_CHIP_GAP
         return False
 
-    def paint(
-        self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex
-    ):
+    def paint(  # noqa: PLR0915
+        self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex | QPersistentModelIndex
+    ) -> None:
         song = index.data(Qt.ItemDataRole.UserRole)
         if not isinstance(song, SongInfo):
             return
 
         painter.save()
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         # Background
-        if option.state & QStyle.State_Selected:
+        if option.state & QStyle.StateFlag.State_Selected:
             painter.fillRect(option.rect, QColor(theme.SURFACE_LIST_SELECTED))
-        elif option.state & QStyle.State_MouseOver:
+        elif option.state & QStyle.StateFlag.State_MouseOver:
             painter.fillRect(option.rect, QColor(theme.SURFACE_ELEVATED))
 
         # Padding adjustment: 16px vertical padding for more breathing room
@@ -202,7 +203,7 @@ class SongDelegate(QStyledItemDelegate):
             painter.drawPixmap(jacket_rect.toRect(), pixmap)
         else:
             painter.setPen(QColor(theme.TEXT_DIM))
-            painter.drawText(jacket_rect, Qt.AlignCenter, "?")
+            painter.drawText(jacket_rect, Qt.AlignmentFlag.AlignCenter, "?")
 
         # Text stack
         text_x = rect.x() + jacket_size + 16
@@ -214,8 +215,8 @@ class SongDelegate(QStyledItemDelegate):
         title_rect = QRectF(text_x, rect.y(), text_w, 28)
         painter.drawText(
             title_rect,
-            Qt.AlignLeft | Qt.AlignTop,
-            painter.fontMetrics().elidedText(song.name, Qt.ElideRight, int(text_w)),
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop,
+            painter.fontMetrics().elidedText(song.name, Qt.TextElideMode.ElideRight, int(text_w)),
         )
 
         # Artist
@@ -224,8 +225,8 @@ class SongDelegate(QStyledItemDelegate):
         artist_rect = QRectF(text_x, rect.y() + 28, text_w, 20)
         painter.drawText(
             artist_rect,
-            Qt.TextSingleLine,
-            painter.fontMetrics().elidedText(song.artist, Qt.ElideRight, int(text_w)),
+            Qt.TextFlag.TextSingleLine,
+            painter.fontMetrics().elidedText(song.artist, Qt.TextElideMode.ElideRight, int(text_w)),
         )
 
         # Metadata Pass
@@ -243,8 +244,8 @@ class SongDelegate(QStyledItemDelegate):
         charter_rect = QRectF(text_x, rect.y() + 52, text_w, 16)
         painter.drawText(
             charter_rect,
-            Qt.TextSingleLine,
-            painter.fontMetrics().elidedText(charter_text, Qt.ElideRight, int(text_w)),
+            Qt.TextFlag.TextSingleLine,
+            painter.fontMetrics().elidedText(charter_text, Qt.TextElideMode.ElideRight, int(text_w)),
         )
 
         # ID line
@@ -252,7 +253,7 @@ class SongDelegate(QStyledItemDelegate):
         painter.setPen(QColor(theme.TEXT_DIM))
         id_text = f"ID {song.song_id}  •  {version}"
         id_rect = QRectF(text_x, rect.y() + 72, text_w, 16)
-        painter.drawText(id_rect, Qt.TextSingleLine, id_text)
+        painter.drawText(id_rect, Qt.TextFlag.TextSingleLine, id_text)
 
         # Difficulty Markers (shown in all view modes)
         marker_y = rect.y() + 100
@@ -275,7 +276,6 @@ class SongDelegate(QStyledItemDelegate):
             )
             box_rect = QRectF(marker_x, marker_y, box_w, _LEVEL_CHIP_HEIGHT)
 
-            diff_color = _DIFFICULTY_COLORS.get(fumen.difficulty, QColor(theme.WHITE))
             
             painter.save()
             # Draw Pill Background
@@ -297,5 +297,6 @@ class SongDelegate(QStyledItemDelegate):
 
         painter.restore()
 
-    def sizeHint(self, option: QStyleOptionViewItem, index: QModelIndex):
+    def sizeHint(self, option: QStyleOptionViewItem, index: QModelIndex | QPersistentModelIndex) -> QSize:
+        _ = index
         return QSize(200, 150)

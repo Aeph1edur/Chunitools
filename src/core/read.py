@@ -7,6 +7,7 @@ Chunithm charts and parsing their .c2s contents into internal models.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import re
 import xml.etree.ElementTree as ET
@@ -17,17 +18,8 @@ from typing import TypedDict
 
 logger = logging.getLogger("chartloading")
 
-from src.core.editor_metadata import load_editor_metadata
-from src.core.models import (
-    Chart,
-    Click,
-    Deceleration,
-    SofLanArea,
-    SofLanPattern,
-    ScrollSpeed,
-    Stop,
-)
 from src.core.const import Command, NoteType
+from src.core.editor_metadata import load_editor_metadata
 from src.core.library_models import (
     DirectoryParseResult,
     FumenInfo,
@@ -35,14 +27,24 @@ from src.core.library_models import (
     SongInfo,
 )
 from src.core.library_scanner import DataScanner
+from src.core.metadata import fast_get_metadata
+from src.core.models import (
+    Chart,
+    Click,
+    Deceleration,
+    ScrollSpeed,
+    SofLanArea,
+    SofLanPattern,
+    Stop,
+)
 from src.notes import (
-    AirHoldStart,
     Air,
     AirHold,
-    AirSlideStart,
-    CrashSlide,
+    AirHoldStart,
     AirSlide,
+    AirSlideStart,
     AirSolid,
+    CrashSlide,
     ExTap,
     Flick,
     HeavenHold,
@@ -53,8 +55,13 @@ from src.notes import (
     SlideTo,
     Tap,
 )
-from src.notes.geometry import note_duration, note_end_cell, note_end_width, note_has_steps, note_get_steps
-from src.core.metadata import fast_get_metadata
+from src.notes.geometry import (
+    note_duration,
+    note_end_cell,
+    note_end_width,
+    note_get_steps,
+    note_has_steps,
+)
 
 __all__ = [
     "FumenInfo",
@@ -107,15 +114,17 @@ _NOTE_CMDS: frozenset[NoteType] = frozenset(
 )
 _NOTE_CMD_VALUES: frozenset[str] = frozenset(note_type.value for note_type in _NOTE_CMDS)
 
-_SYSTEM_CMD_VALUES: frozenset[str] = frozenset({
-    "SLP",
-    "SFL",
-    "SFE",
-    "SLA",
-    "STP",
-    "DCM",
-    "CLK",
-})
+_SYSTEM_CMD_VALUES: frozenset[str] = frozenset(
+    {
+        "SLP",
+        "SFL",
+        "SFE",
+        "SLA",
+        "STP",
+        "DCM",
+        "CLK",
+    }
+)
 SLIDE_NOTE_TYPES: frozenset[NoteType] = frozenset(
     {NoteType.SLD, NoteType.SLC, NoteType.SXD, NoteType.SXC}
 )
@@ -123,9 +132,7 @@ AIR_SLIDE_NOTE_TYPES: frozenset[NoteType] = frozenset({NoteType.ASD, NoteType.AS
 AIR_MODIFIER_NOTE_TYPES: frozenset[NoteType] = frozenset(
     {NoteType.AIR, NoteType.AUR, NoteType.AUL, NoteType.ADW, NoteType.ADR, NoteType.ADL}
 )
-AIR_SUSTAIN_NOTE_TYPES: frozenset[NoteType] = frozenset(
-    {NoteType.AHD, NoteType.ALD, NoteType.AHX}
-)
+AIR_SUSTAIN_NOTE_TYPES: frozenset[NoteType] = frozenset({NoteType.AHD, NoteType.ALD, NoteType.AHX})
 
 
 class _NoteHead(TypedDict):
@@ -185,7 +192,7 @@ def _parse_note_head(args: list[str]) -> _NoteHead | None:
     }
 
 
-def _parse_note(note_type: NoteType, args: list[str]) -> Note | None:
+def _parse_note(note_type: NoteType, args: list[str]) -> Note | None:  # noqa: PLR0911, PLR0912
     """Dispatch note parsing exactly as implemented in nai-rs."""
     if len(args) < 4:
         return None
@@ -199,7 +206,7 @@ def _parse_note(note_type: NoteType, args: list[str]) -> Note | None:
 
         if note_type == NoteType.TAP:
             return Tap(note_type=note_type, measure=measure, offset=offset, cell=cell, width=width)
-        
+
         if note_type == NoteType.MNE:
             return Mine(note_type=note_type, measure=measure, offset=offset, cell=cell, width=width)
 
@@ -237,12 +244,27 @@ def _parse_note(note_type: NoteType, args: list[str]) -> Note | None:
             )
 
         if note_type == NoteType.CHR:
-            return ExTap(note_type=note_type, measure=measure, offset=offset, cell=cell, width=width, unknown=data[0])
+            return ExTap(
+                note_type=note_type,
+                measure=measure,
+                offset=offset,
+                cell=cell,
+                width=width,
+                unknown=data[0],
+            )
 
         if note_type in (NoteType.HLD, NoteType.HXD):
             duration = int(float(data[0]))
             animation = data[1] if len(data) > 1 else None
-            return Hold(note_type=note_type, measure=measure, offset=offset, cell=cell, width=width, duration=duration, animation=animation)
+            return Hold(
+                note_type=note_type,
+                measure=measure,
+                offset=offset,
+                cell=cell,
+                width=width,
+                duration=duration,
+                animation=animation,
+            )
 
         if note_type in (NoteType.SLD, NoteType.SLC, NoteType.SXD, NoteType.SXC):
             duration = int(float(data[0]))
@@ -266,7 +288,14 @@ def _parse_note(note_type: NoteType, args: list[str]) -> Note | None:
             )
 
         if note_type == NoteType.FLK:
-            return Flick(note_type=note_type, measure=measure, offset=offset, cell=cell, width=width, unknown=data[0])
+            return Flick(
+                note_type=note_type,
+                measure=measure,
+                offset=offset,
+                cell=cell,
+                width=width,
+                unknown=data[0],
+            )
 
         if note_type == NoteType.AIR:
             color = data[1] if len(data) > 1 else "DEF"
@@ -282,39 +311,69 @@ def _parse_note(note_type: NoteType, args: list[str]) -> Note | None:
 
         if note_type in (NoteType.AUR, NoteType.AUL, NoteType.ADW, NoteType.ADR, NoteType.ADL):
             color = data[1] if len(data) > 1 else "DEF"
-            return Air(note_type=note_type, measure=measure, offset=offset, cell=cell, width=width, target_note=data[0], color=color)
+            return Air(
+                note_type=note_type,
+                measure=measure,
+                offset=offset,
+                cell=cell,
+                width=width,
+                target_note=data[0],
+                color=color,
+            )
 
         if note_type == NoteType.AHD:
-            return AirHoldStart(note_type=note_type, measure=measure, offset=offset, cell=cell, width=width, target_note=data[0], duration=int(float(data[1])))
+            return AirHoldStart(
+                note_type=note_type,
+                measure=measure,
+                offset=offset,
+                cell=cell,
+                width=width,
+                target_note=data[0],
+                duration=int(float(data[1])),
+            )
 
         if note_type == NoteType.AHX:
             return AirHold(
-                note_type=note_type, measure=measure, offset=offset, cell=cell, width=width,
-                target_note=data[0], duration=int(float(data[1])), color=data[2] if len(data) > 2 else "DEF"
+                note_type=note_type,
+                measure=measure,
+                offset=offset,
+                cell=cell,
+                width=width,
+                target_note=data[0],
+                duration=int(float(data[1])),
+                color=data[2] if len(data) > 2 else "DEF",
             )
 
         if note_type == NoteType.ALD:
             return CrashSlide(
-                note_type=note_type, measure=measure, offset=offset, cell=cell, width=width,
+                note_type=note_type,
+                measure=measure,
+                offset=offset,
+                cell=cell,
+                width=width,
                 crush_interval=int(float(data[0])),
                 starting_height=float(data[1]),
                 duration=int(float(data[2])),
                 end_cell=int(float(data[3])),
                 end_width=int(float(data[4])),
                 target_height=float(data[5]),
-                color=data[6]
+                color=data[6],
             )
 
         if note_type in (NoteType.ASD, NoteType.ASC, NoteType.ASX):
             return AirSlide(
-                note_type=note_type, measure=measure, offset=offset, cell=cell, width=width,
+                note_type=note_type,
+                measure=measure,
+                offset=offset,
+                cell=cell,
+                width=width,
                 target_note=data[0],
                 starting_height=float(data[1]),
                 duration=int(float(data[2])),
                 end_cell=int(float(data[3])),
                 end_width=int(float(data[4])),
                 target_height=float(data[5]),
-                color=data[6]
+                color=data[6],
             )
 
     except (ValueError, TypeError, IndexError):
@@ -360,11 +419,17 @@ class C2sParser(IChartParser):
         self._chart.notes.sort(key=lambda n: (n.measure, n.offset, n.cell))
         return self._chart
 
+    @property
+    def _active_chart(self) -> Chart:
+        if self._chart is None:
+            raise RuntimeError("Parser chart is not initialized")
+        return self._chart
+
     # -- Convenience accessors ------------------------------------------------
 
     @property
     def _resolution(self) -> int:
-        return int(self._chart.metadata.resolution)
+        return int(self._active_chart.metadata.resolution)
 
     def _get_tick(self, n: Note) -> int:
         return n.measure * self._resolution + n.offset
@@ -411,19 +476,19 @@ class C2sParser(IChartParser):
             command_str, args = parts[0], parts[1:]
 
             if command_str in metadata_map:
-                _handle_metadata_command(self._chart, command_str, args, metadata_map)
+                _handle_metadata_command(self._active_chart, command_str, args, metadata_map)
             elif command_str == Command.BPM_DEF.value:
-                self._chart.metadata.bpm_def = args
+                self._active_chart.metadata.bpm_def = args
             elif command_str == Command.MET_DEF.value:
-                _handle_met_def_command(self._chart, args)
+                _handle_met_def_command(self._active_chart, args)
             elif command_str == Command.BPM.value:
-                _handle_bpm_command(self._chart, args)
+                _handle_bpm_command(self._active_chart, args)
             elif command_str == Command.MET.value:
-                _handle_met_command(self._chart, args)
+                _handle_met_command(self._active_chart, args)
             elif command_str == CUSTOM_AUDIO_COMMAND and args:
-                self._chart.metadata.audio_path = " ".join(args).strip()
+                self._active_chart.metadata.audio_path = " ".join(args).strip()
             elif command_str in _SYSTEM_CMD_VALUES:
-                _handle_system_command(self._chart, command_str, args)
+                _handle_system_command(self._active_chart, command_str, args)
             elif command_str in _NOTE_CMD_VALUES:
                 try:
                     nt = NoteType(command_str)
@@ -508,9 +573,11 @@ class C2sParser(IChartParser):
                     nxt = self._slide_segments[j]
                     if nxt in used:
                         continue
-                    if (self._get_tick(nxt) == end_tick
-                            and nxt.cell == end_cell
-                            and nxt.width == end_width):
+                    if (
+                        self._get_tick(nxt) == end_tick
+                        and nxt.cell == end_cell
+                        and nxt.width == end_width
+                    ):
                         chain.append(nxt)
                         used.add(nxt)
                         current = nxt
@@ -521,24 +588,26 @@ class C2sParser(IChartParser):
                 if not found:
                     break
 
-            joined.append(Slide(
-                note_type=start_seg.note_type,
-                measure=start_seg.measure,
-                offset=start_seg.offset,
-                cell=start_seg.cell,
-                width=start_seg.width,
-                steps=tuple(chain),
-            ))
+            joined.append(
+                Slide(
+                    note_type=start_seg.note_type,
+                    measure=start_seg.measure,
+                    offset=start_seg.offset,
+                    cell=start_seg.cell,
+                    width=start_seg.width,
+                    steps=tuple(chain),
+                )
+            )
 
         orphan_slides = [s for s in self._slide_segments if s not in used]
         if orphan_slides:
-            self._chart._warnings.append(
+            self._active_chart._warnings.append(
                 f"{len(orphan_slides)} slide segment(s) could not be chained "
                 f"(no matching successor at end position)"
             )
         return joined
 
-    def _join_air_slide_segments(self) -> list[AirSlideStart]:
+    def _join_air_slide_segments(self) -> list[AirSlideStart]:  # noqa: PLR0912
         self._air_slide_segments.sort(key=lambda s: (self._get_tick(s), s.cell, s.width))
         joined: list[AirSlideStart] = []
         used = self._used_air_slide_segments
@@ -559,10 +628,12 @@ class C2sParser(IChartParser):
                     nxt = self._air_slide_segments[j]
                     if nxt in used:
                         continue
-                    if self._get_tick(nxt) == end_tick:
-                        if (abs(float(nxt.cell) - end_cell) < 0.1
-                                and abs(float(nxt.width) - end_width) < 0.1):
-                            candidates.append(nxt)
+                    if (
+                        self._get_tick(nxt) == end_tick
+                        and abs(float(nxt.cell) - end_cell) < 0.1
+                        and abs(float(nxt.width) - end_width) < 0.1
+                    ):
+                        candidates.append(nxt)
                     if self._get_tick(nxt) > end_tick:
                         break
                 if not candidates:
@@ -578,18 +649,20 @@ class C2sParser(IChartParser):
                 used.add(best)
                 current = best
 
-            joined.append(AirSlideStart(
-                note_type=start_seg.note_type,
-                measure=start_seg.measure,
-                offset=start_seg.offset,
-                cell=start_seg.cell,
-                width=start_seg.width,
-                steps=tuple(chain),
-            ))
+            joined.append(
+                AirSlideStart(
+                    note_type=start_seg.note_type,
+                    measure=start_seg.measure,
+                    offset=start_seg.offset,
+                    cell=start_seg.cell,
+                    width=start_seg.width,
+                    steps=tuple(chain),
+                )
+            )
 
         orphan_air = [s for s in self._air_slide_segments if s not in used]
         if orphan_air:
-            self._chart._warnings.append(
+            self._active_chart._warnings.append(
                 f"{len(orphan_air)} air slide segment(s) could not be chained "
                 f"(no matching successor at end position)"
             )
@@ -597,7 +670,7 @@ class C2sParser(IChartParser):
 
     # -- Pass 3: Air-note anchoring -------------------------------------------
 
-    def _pass3_anchor_air_notes(self) -> None:
+    def _pass3_anchor_air_notes(self) -> None:  # noqa: PLR0912, PLR0915
         remaining: list[AirSlide] = [
             s for s in self._air_slide_segments if s not in self._used_air_slide_segments
         ]
@@ -619,7 +692,12 @@ class C2sParser(IChartParser):
             add_anchor(self._get_tick(n), n.cell, n.width, n)
             if note_has_steps(n):
                 for step in note_get_steps(n):
-                    add_anchor(self._get_end_tick(step), step.end_cell, step.end_width, step)
+                    add_anchor(
+                        self._get_end_tick(step),
+                        note_end_cell(step),
+                        note_end_width(step),
+                        step,
+                    )
             else:
                 dur = note_duration(n)
                 if dur > 0:
@@ -630,24 +708,25 @@ class C2sParser(IChartParser):
         final_notes: list[Note] = []
 
         # 3.1 Anchor joined air slides
-        for air_slide_note in self._joined_air_slides:
-            tick = self._get_tick(air_slide_note)
-            k = (tick, air_slide_note.cell, air_slide_note.width)
+        for note in self._joined_air_slides:
+            tick = self._get_tick(note)
+            k = (tick, note.cell, note.width)
             candidates = anchor_lookup.get(k, [])
             anchor = None
-            target_type = air_slide_note.steps[0].target_note
+            target_type = getattr(note, "target_note", "DEF")
             if target_type == "DEF":
-                filtered = [c for c in candidates if c is not air_slide_note]
-                if filtered:
-                    anchor = filtered[0]
+                if candidates:
+                    anchor = candidates[0]
             else:
                 for cand in candidates:
-                    if cand is not air_slide_note and self._matches_target_note(cand, target_type):
+                    if self._matches_target_note(cand, target_type):
                         anchor = cand
                         break
             if anchor:
-                air_slide_note = replace(air_slide_note, parent=anchor)
-            final_notes.append(air_slide_note)
+                note_obj = replace(note, parent=anchor)
+            else:
+                note_obj = note
+            final_notes.append(note_obj)
 
         # 3.2 Anchor individual remaining segments
         for seg in remaining:
@@ -666,8 +745,10 @@ class C2sParser(IChartParser):
                         anchor = cand
                         break
             if anchor:
-                seg = replace(seg, parent=anchor)
-            final_notes.append(seg)
+                seg_obj = replace(seg, parent=anchor)
+            else:
+                seg_obj = seg
+            final_notes.append(seg_obj)
 
         # 3.3 Add non-air notes
         final_notes.extend(self._ground_notes)
@@ -697,7 +778,7 @@ class C2sParser(IChartParser):
                 note = replace(note, parent=anchor)
             final_notes.append(note)
 
-        self._chart.notes = final_notes
+        self._active_chart.notes = final_notes
 
 
 def parse_c2s(content: str) -> Chart:
@@ -711,9 +792,7 @@ def discover_chart_files(
     base = Path(root)
     if not base.exists():
         return []
-    files = [
-        path for path in base.rglob("*") if path.is_file() and path.suffix.lower() in suffixes
-    ]
+    files = [path for path in base.rglob("*") if path.is_file() and path.suffix.lower() in suffixes]
     files.sort()
     return files
 
@@ -738,15 +817,11 @@ def _handle_metadata_command(
     if attribute_name in ("creator", "title", "artist"):
         setattr(chart.metadata, attribute_name, " ".join(args))
     elif attribute_name in ("resolution", "clk_def"):
-        try:
+        with contextlib.suppress(ValueError, TypeError):
             setattr(chart.metadata, attribute_name, int(float(args[0])))
-        except (ValueError, TypeError):
-            pass
     elif attribute_name in ("progjudge_bpm", "progjudge_aer"):
-        try:
+        with contextlib.suppress(ValueError, TypeError):
             setattr(chart.metadata, attribute_name, float(args[0]))
-        except (ValueError, TypeError):
-            pass
     elif attribute_name == "difficulty":
         try:
             diff_id = int(float(args[0]))
@@ -755,15 +830,12 @@ def _handle_metadata_command(
         except (ValueError, TypeError):
             chart.metadata.difficulty = args[0]
     elif attribute_name == "we_level":
-        try:
+        with contextlib.suppress(ValueError, TypeError):
             chart.metadata.we_level = int(float(args[0]))
-        except (ValueError, TypeError):
-            pass
     elif attribute_name == "tutorial":
         chart.metadata.tutorial = args[0] == "1"
     else:
         setattr(chart.metadata, attribute_name, args[0])
-
 
 
 def _handle_bpm_command(chart: Chart, args: list[str]) -> None:
@@ -808,7 +880,6 @@ def _handle_met_command(chart: Chart, args: list[str]) -> None:
         pass
 
 
-
 def _handle_note_command(chart: Chart, command_str: str, args: list[str]) -> None:
     try:
         note_type_enum = NoteType(command_str)
@@ -823,47 +894,59 @@ def _handle_note_command(chart: Chart, command_str: str, args: list[str]) -> Non
 def _handle_system_command(chart: Chart, command_str: str, args: list[str]) -> None:
     try:
         if command_str == "SLA":
-            chart.soflan_areas.append(SofLanArea(
-                measure=int(float(args[0])),
-                tick=int(float(args[1])),
-                cell=int(float(args[2])),
-                width=int(float(args[3])),
-                duration=int(float(args[4])),
-                area_id=int(float(args[5])),
-            ))
+            chart.soflan_areas.append(
+                SofLanArea(
+                    measure=int(float(args[0])),
+                    tick=int(float(args[1])),
+                    cell=int(float(args[2])),
+                    width=int(float(args[3])),
+                    duration=int(float(args[4])),
+                    area_id=int(float(args[5])),
+                )
+            )
         elif command_str == "SLP":
-            chart.soflan_patterns.append(SofLanPattern(
-                measure=int(float(args[0])),
-                tick=int(float(args[1])),
-                duration=int(float(args[2])),
-                speed=float(args[3]),
-                pattern_id=int(float(args[4])),
-            ))
+            chart.soflan_patterns.append(
+                SofLanPattern(
+                    measure=int(float(args[0])),
+                    tick=int(float(args[1])),
+                    duration=int(float(args[2])),
+                    speed=float(args[3]),
+                    pattern_id=int(float(args[4])),
+                )
+            )
         elif command_str in ("SFL", "SFE"):
-            chart.scroll_speeds.append(ScrollSpeed(
-                measure=int(float(args[0])),
-                tick=int(float(args[1])),
-                duration=int(float(args[2])),
-                multiplier=float(args[3]),
-            ))
+            chart.scroll_speeds.append(
+                ScrollSpeed(
+                    measure=int(float(args[0])),
+                    tick=int(float(args[1])),
+                    duration=int(float(args[2])),
+                    multiplier=float(args[3]),
+                )
+            )
         elif command_str == "STP":
-            chart.stops.append(Stop(
-                measure=int(float(args[0])),
-                tick=int(float(args[1])),
-                duration=int(float(args[2])),
-            ))
+            chart.stops.append(
+                Stop(
+                    measure=int(float(args[0])),
+                    tick=int(float(args[1])),
+                    duration=int(float(args[2])),
+                )
+            )
         elif command_str == "DCM":
-            chart.decelerations.append(Deceleration(
-                measure=int(float(args[0])),
-                tick=int(float(args[1])),
-                duration=int(float(args[2])),
-                rate=float(args[3]),
-            ))
+            chart.decelerations.append(
+                Deceleration(
+                    measure=int(float(args[0])),
+                    tick=int(float(args[1])),
+                    duration=int(float(args[2])),
+                    rate=float(args[3]),
+                )
+            )
         elif command_str == "CLK":
-            chart.clicks.append(Click(
-                measure=int(float(args[0])),
-                tick=int(float(args[1])),
-            ))
+            chart.clicks.append(
+                Click(
+                    measure=int(float(args[0])),
+                    tick=int(float(args[1])),
+                )
+            )
     except (ValueError, IndexError, TypeError):
         pass
 
@@ -923,7 +1006,7 @@ def _resolve_custom_audio_path(chart: Chart, source_path: Path) -> None:
         chart.metadata.audio_path = str(resolved)
 
 
-def _resolve_metadata_from_xml(chart: Chart, source_path: Path) -> None:
+def _resolve_metadata_from_xml(chart: Chart, source_path: Path) -> None:  # noqa: PLR0912
     """Attempt to fill missing metadata (title, artist) from Music.xml."""
     xml_path = source_path.parent / "Music.xml"
     if not xml_path.exists():
@@ -931,7 +1014,7 @@ def _resolve_metadata_from_xml(chart: Chart, source_path: Path) -> None:
 
     try:
         root = ET.parse(xml_path).getroot()
-        
+
         # Resolve Title if missing or placeholder
         if chart.metadata.title in {"", "Untitled"}:
             name_str = root.findtext("name/str")
@@ -961,7 +1044,7 @@ def _resolve_metadata_from_xml(chart: Chart, source_path: Path) -> None:
                     diff_name = fumen_node.findtext("type/str")
                     if diff_name:
                         chart.metadata.difficulty = diff_name.strip()
-                    
+
                     level = fumen_node.findtext("level")
                     decimal = fumen_node.findtext("levelDecimal")
                     if level:

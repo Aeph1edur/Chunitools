@@ -10,6 +10,8 @@ from src.core.editor import make_note
 from src.notes import AirSlide, AirSlideStart, Note, Slide, SlideTo
 
 if TYPE_CHECKING:
+    from src.core.models import Chart
+    from src.engine.timeline import ChartTimeline
     from src.ui.window.window import MainWindow
 
 
@@ -24,12 +26,12 @@ class SlideEditor:
         self.w = window
 
     @property
-    def _chart(self):
+    def _chart(self) -> Chart | None:
         return self.w.current_chart
 
     # ── Ground slides ──
 
-    def append_ground(
+    def append_ground(  # noqa: PLR0913
         self, start_tick: int, start_cell: int, width: int,
         start_measure: int, start_offset: int, duration: int, end_cell: int,
     ) -> Slide | None:
@@ -55,7 +57,7 @@ class SlideEditor:
         self._replace(original, replacement)
         return replacement
 
-    def insert_ground(
+    def insert_ground(  # noqa: PLR0913
         self, start_tick: int, start_cell: int, width: int,
         start_measure: int, start_offset: int, duration: int, end_cell: int,
     ) -> Slide | None:
@@ -66,8 +68,9 @@ class SlideEditor:
         if containing is None:
             return None
         original, split_step, split_index = containing
-        seg_start = self._tl.note_tick(split_step)
-        seg_end = self._tl.note_end_tick(split_step)
+        tl = chart.timeline
+        seg_start = tl.note_tick(split_step)
+        seg_end = tl.note_end_tick(split_step)
         inserted_end = start_tick + duration
         if inserted_end > seg_end:
             return None
@@ -129,7 +132,7 @@ class SlideEditor:
 
     # ── Air slides ──
 
-    def append_air(
+    def append_air(  # noqa: PLR0913
         self, start_tick: int, start_cell: int, width: int,
         start_measure: int, start_offset: int, duration: int, end_cell: int,
     ) -> AirSlideStart | None:
@@ -156,7 +159,7 @@ class SlideEditor:
         self._replace(original, replacement)
         return replacement
 
-    def insert_air(
+    def insert_air(  # noqa: PLR0913
         self, start_tick: int, start_cell: int, width: int,
         start_measure: int, start_offset: int, duration: int, end_cell: int,
     ) -> AirSlideStart | None:
@@ -167,8 +170,9 @@ class SlideEditor:
         if containing is None:
             return None
         original, split_step, split_index = containing
-        seg_start = self._tl.note_tick(split_step)
-        seg_end = self._tl.note_end_tick(split_step)
+        tl = chart.timeline
+        seg_start = tl.note_tick(split_step)
+        seg_end = tl.note_end_tick(split_step)
         inserted_end = start_tick + duration
         if inserted_end > seg_end:
             return None
@@ -245,6 +249,6 @@ class SlideEditor:
         self.replace_note(original, replacement)
 
     @property
-    def _tl(self):
+    def _tl(self) -> ChartTimeline | None:
         chart = self._chart
         return chart.timeline if chart else None

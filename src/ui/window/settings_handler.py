@@ -119,8 +119,9 @@ class SettingsHandler:
 
     def toggle_note_debug_overlay(self, checked: bool) -> None:
         self.w.visualizer.set_note_debug_overlay_active(checked)
-        if hasattr(self.w, "play_view_3d") and self.w.play_view_3d:
-            self.w.play_view_3d.set_note_debug_overlay_active(checked)
+        pv3d = getattr(self.w, "play_view_3d", None)
+        if pv3d:
+            pv3d.set_note_debug_overlay_active(checked)
         settings.show_note_debug_overlay = checked
         settings.save()
         if hasattr(self.w, "toggle_note_debug_action"):

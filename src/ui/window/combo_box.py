@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QModelIndex, QPointF, Qt, QTimer
+from PySide6.QtCore import QModelIndex, QPersistentModelIndex, QPointF, Qt, QTimer
 from PySide6.QtGui import (
     QColor,
     QFontMetrics,
@@ -32,7 +32,7 @@ class HoverOnlyComboDelegate(QStyledItemDelegate):
         self,
         painter: QPainter,
         option: QStyleOptionViewItem,
-        index: QModelIndex,
+        index: QModelIndex | QPersistentModelIndex,
     ) -> None:
         # Check if this item is currently hovered by comparing rows
         is_hovered = (self._combo.hovered_popup_index.isValid() and

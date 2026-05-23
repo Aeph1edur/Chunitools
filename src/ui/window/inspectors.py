@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import re
 from html import escape
+from typing import TYPE_CHECKING
 
 from src.core.const import NoteType, RenderRole
-from src.core.models import Chart
+
+if TYPE_CHECKING:
+    from src.core.models import Chart
 from src.notes import AirSlideStart, Note, Slide
 
 _AIR_DIRECTION_BEHAVIOR = {
@@ -54,7 +57,7 @@ def _detail_line(label: str, value: str) -> str:
            f'<span style="color:#cccccc;">{escape(value)}</span><br>'
 
 
-def format_render_behavior(note: Note, chart: Chart | None = None) -> str:
+def format_render_behavior(note: Note, chart: Chart | None = None) -> str:  # noqa: PLR0912
     """Format the calculated render behavior of *note* as HTML."""
     note_type = note.note_type
     timeline = chart.timeline if chart else None
@@ -234,7 +237,7 @@ def _render_table_separator(col_widths: list[int]) -> str:
     return f'<span style="color:#555;">{dash}</span><br>'
 
 
-def _get_header_parts(ntype: NoteType) -> list[str]:
+def _get_header_parts(ntype: NoteType) -> list[str]:  # noqa: PLR0911
     """Return descriptive header parts for the given note type."""
     base = ["MS", "OFF", "CEL", "WID"]
 

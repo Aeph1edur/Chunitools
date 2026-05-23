@@ -52,7 +52,7 @@ class PlaybackCoordinator(QObject):
 
         # Dedicated timer for audio synchronization to avoid high-frequency slew resets
         self._sync_timer = QTimer(self)
-        self._sync_timer.setInterval(500) # Sync every 500ms
+        self._sync_timer.setInterval(500)  # Sync every 500ms
         self._sync_timer.timeout.connect(
             lambda: self._sync_chart_to_music_clock(self.controller.current_pos)
         )
@@ -64,9 +64,7 @@ class PlaybackCoordinator(QObject):
         loaded = self.music_player.has_loaded_source
         self.controller.set_playback_duration(self.music_player.duration_seconds)
         if loaded and self.controller.is_playing:
-            self.music_player.play_from(
-                self._chart_seconds_at_pos(self.controller.current_pos)
-            )
+            self.music_player.play_from(self._chart_seconds_at_pos(self.controller.current_pos))
             self._sync_timer.start()
         return loaded
 

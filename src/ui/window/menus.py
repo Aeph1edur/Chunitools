@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QEvent, QObject, QPointF, Qt
+from PySide6.QtGui import QMouseEvent
 from PySide6.QtGui import (
     QAction,
     QActionGroup,
@@ -17,6 +18,7 @@ from PySide6.QtWidgets import QMenu, QMenuBar
 
 from src.core.config import settings
 from src.core.const import NoteType
+from src.core.const import NoteType
 from src.ui.theme.notes import get_note_color
 
 if TYPE_CHECKING:
@@ -27,8 +29,7 @@ class MenuCursorFilter(QObject):
     """Event filter that provides a pointer cursor for menu items and menu bar titles."""
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802 - Qt override.
-        if isinstance(watched, (QMenu, QMenuBar)):
-            if event.type() == QEvent.Type.MouseMove:
+        if isinstance(watched, (QMenu, QMenuBar)) and event.type() == QEvent.Type.MouseMove and isinstance(event, QMouseEvent):
                 action = watched.actionAt(event.pos())
                 if action and not action.isSeparator() and action.isEnabled():
                     if watched.cursor().shape() != Qt.CursorShape.PointingHandCursor:
@@ -69,7 +70,7 @@ def _make_note_tool_icon(note_type: NoteType, size: int = 24) -> QIcon:
     return QIcon(pixmap)
 
 
-def create_menu_bar(window: MainWindow) -> None:
+def create_menu_bar(window: MainWindow) -> None:  # noqa: PLR0915
     # 1. The actual menu bar
     menu_bar = QMenuBar(window)
     menu_bar.setNativeMenuBar(False)
@@ -231,8 +232,6 @@ def create_menu_bar(window: MainWindow) -> None:
     mode_group.addAction(window.mode_3d_action)
 
     # --- Note Visibility Menu (Categorized) ---
-    from src.core.const import NoteType
-
     categories = {
         "Ground Notes": {
             NoteType.TAP: "Tap",

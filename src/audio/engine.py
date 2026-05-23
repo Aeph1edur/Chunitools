@@ -1,6 +1,7 @@
 """Low-latency audio engine for hitsound playback using QSoundEffect."""
 
 import os
+
 from PySide6.QtCore import QObject, QUrl
 from PySide6.QtMultimedia import QSoundEffect
 
@@ -8,6 +9,7 @@ from src.core.config import DEFAULT_HITSOUND_VOLUME
 
 # A pool of effects allows for simultaneous note playback with zero mixing overhead
 POOL_SIZE = 16
+
 
 class AudioEngine(QObject):
     """Manages a pool of QSoundEffect objects for ultra-low latency hitsounds."""
@@ -40,7 +42,7 @@ class AudioEngine(QObject):
 
         # Simple round-robin pooling
         effect = self.effects[self._current_index]
-        
+
         # If the user provided a specific volume for this hit, apply it
         if volume is not None:
             effect.setVolume(max(0.0, min(1.0, float(volume))))
@@ -48,7 +50,7 @@ class AudioEngine(QObject):
             effect.setVolume(self.volume)
 
         effect.play()
-        
+
         self._current_index = (self._current_index + 1) % POOL_SIZE
 
     def stop_all(self) -> None:

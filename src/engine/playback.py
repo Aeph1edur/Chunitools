@@ -155,8 +155,7 @@ class PlaybackController(QObject):
         # Calculate the new target offset based on the external clock
         target_time_s = self.chart.timeline.time_at_measure(pos)
         internal_time_s = (
-            self._start_pos_seconds
-            + self._start_time.nsecsElapsed() / 1_000_000_000.0
+            self._start_pos_seconds + self._start_time.nsecsElapsed() / 1_000_000_000.0
         )
         if target_time_s > internal_time_s:
             self._emit_due_triggers(target_time_s)
@@ -221,8 +220,7 @@ class PlaybackController(QObject):
         if slew_elapsed < self._slew_duration:
             t = slew_elapsed / self._slew_duration
             return (
-                self._slew_start_offset
-                + (self._target_sync_offset_s - self._slew_start_offset) * t
+                self._slew_start_offset + (self._target_sync_offset_s - self._slew_start_offset) * t
             )
         return self._target_sync_offset_s
 

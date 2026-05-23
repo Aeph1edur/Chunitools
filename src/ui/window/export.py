@@ -5,6 +5,7 @@ import re
 import wave
 from pathlib import Path
 from time import monotonic
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QDesktopServices
@@ -14,6 +15,9 @@ from src.core.config import USER_CONFIG_DIR
 from src.core.read import load_chart_file
 from src.ui.view.chart_renderer import ChartRenderer
 from src.ui.view.export import export_to_image
+
+if TYPE_CHECKING:
+    from src.ui.window.window import MainWindow
 
 CHART_EXTENSIONS = {".c2s"}
 
@@ -44,7 +48,7 @@ def _format_eta(seconds: float | None) -> str:
     return f"ETA {minutes:02d}:{sec:02d}"
 
 
-def _set_export_progress_visible(window, visible: bool) -> None:
+def _set_export_progress_visible(window: MainWindow, visible: bool) -> None:
     for attr in (
         "status_eta_label",
         "status_progress",
@@ -69,7 +73,7 @@ def _set_export_progress_visible(window, visible: bool) -> None:
 
 
 def _update_export_progress(
-    window,
+    window: MainWindow,
     current: int,
     total: int,
     started_at: float | None = None,
@@ -94,7 +98,7 @@ def _update_export_progress(
             eta.setText(_format_eta(remaining))
 
 
-def _get_chart_renderer(window) -> ChartRenderer:
+def _get_chart_renderer(window: MainWindow) -> ChartRenderer:
     visualizer = window.visualizer
 
     for attr in (
@@ -117,7 +121,7 @@ def _get_chart_renderer(window) -> ChartRenderer:
     )
 
 
-def _discover_charts(window) -> list[str]:
+def _discover_charts(window: MainWindow) -> list[str]:
     """Gather all available chart paths from the current window context."""
     paths: set[str] = set()
 
@@ -143,12 +147,12 @@ def _discover_charts(window) -> list[str]:
 # Redundant local definitions removed. Using src.ui.view.export.export_to_image.
 
 
-def export_current_chart_image(window) -> None:
-    if not getattr(window, "current_chart", None):
+def export_current_chart_image(window: MainWindow) -> None:
+    chart = window.current_chart
+    if chart is None:
         QMessageBox.warning(window, "Export failed", "No chart is currently loaded.")
         return
 
-    chart = window.current_chart
     title = chart.metadata.title
     difficulty = chart.metadata.difficulty or chart.metadata.level or ""
 
@@ -180,7 +184,7 @@ def export_current_chart_image(window) -> None:
         file_path += ".png"
 
     ok = export_to_image(
-        chart=window.current_chart,
+        chart=chart,
         painter_engine=_get_chart_renderer(window),
         file_path=file_path,
         jacket_path=chart.metadata.jacket_path,
@@ -197,7 +201,7 @@ def export_current_chart_image(window) -> None:
         )
 
 
-def export_all_charts(window) -> None:
+def export_all_charts(window: MainWindow) -> None:  # noqa: PLR0912, PLR0915
     chart_paths = _discover_charts(window)
     if not chart_paths:
         QMessageBox.warning(
@@ -319,12 +323,12 @@ def export_all_charts(window) -> None:
     )
 
 
-def cancel_export_all(window) -> None:
+def cancel_export_all(window: MainWindow) -> None:
     window._export_cancel_requested = True
     window.statusBar().showMessage("Export cancellation requested.", 3000)
 
 
-def open_last_export_folder(window) -> None:
+def open_last_export_folder(window: MainWindow) -> None:
     folder = getattr(window, "_last_export_root", None)
 
     if not folder or not os.path.isdir(folder):
@@ -338,7 +342,7 @@ def open_last_export_folder(window) -> None:
     QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
 
 
-def open_logs_folder(window) -> None:
+def open_logs_folder(window: MainWindow) -> None:
     logs_dir = USER_CONFIG_DIR / "logs"
     if not logs_dir.exists():
         try:
@@ -354,7 +358,7 @@ def open_logs_folder(window) -> None:
     QDesktopServices.openUrl(QUrl.fromLocalFile(str(logs_dir)))
 
 
-def open_last_export_log(window) -> None:
+def open_last_export_log(window: MainWindow) -> None:
     log_path = getattr(window, "_last_export_log", None)
 
     if not log_path or not os.path.exists(log_path):
@@ -368,9 +372,10 @@ def open_last_export_log(window) -> None:
     QDesktopServices.openUrl(QUrl.fromLocalFile(log_path))
 
 
-def export_current_audio(window) -> None:
+def export_current_audio(window: MainWindow) -> None:
     """Export the currently loaded chart's audio as a WAV file."""
-    if not getattr(window, "current_chart", None):
+    chart = window.current_chart
+    if chart is None:
         QMessageBox.warning(window, "Export failed", "No chart is currently loaded.")
         return
 
@@ -392,7 +397,6 @@ def export_current_audio(window) -> None:
         )
         return
 
-    chart = window.current_chart
     title = (
         chart.metadata.title or Path(getattr(window, "current_file_path", "audio")).stem
     )

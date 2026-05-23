@@ -9,9 +9,10 @@ from __future__ import annotations
 import json
 import shutil
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from src.core.models import Chart
+if TYPE_CHECKING:
+    from src.core.models import Chart
 
 EDITOR_METADATA_KEYS = (
     "audio_path",

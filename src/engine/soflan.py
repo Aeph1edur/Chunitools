@@ -38,7 +38,7 @@ class SoflanProjector:
     def has_scroll_effects(self) -> bool:
         return bool(self.groups or self._areas)
 
-    def depth_for_note_tick(
+    def depth_for_note_tick(  # noqa: PLR0913
         self,
         note: Note,
         tick: int,
@@ -80,8 +80,7 @@ class SoflanProjector:
             self._add_event(groups, pattern.pattern_id, end_tick, 1.0)
 
         return {
-            group: sorted(events, key=lambda event: event.time)
-            for group, events in groups.items()
+            group: sorted(events, key=lambda event: event.time) for group, events in groups.items()
         }
 
     def _add_event(
@@ -91,9 +90,7 @@ class SoflanProjector:
         tick: int,
         speed: float,
     ) -> None:
-        groups.setdefault(group, []).append(
-            ScrollEvent(self.timeline.time_at(max(0, tick)), speed)
-        )
+        groups.setdefault(group, []).append(ScrollEvent(self.timeline.time_at(max(0, tick)), speed))
 
     def _group_for_note_at(
         self,

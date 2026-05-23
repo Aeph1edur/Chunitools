@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QRectF, Qt, Signal
+from PySide6.QtCore import QEvent, QRectF, Qt, Signal
 from PySide6.QtGui import (
     QFont,
     QFontMetrics,
@@ -21,8 +21,10 @@ from src.ui import theme
 from src.ui.theme.notes import get_note_color
 
 if TYPE_CHECKING:
+    from src.engine.timeline import ChartTimeline
     from src.notes import Note
     from src.ui.components.viewport import ChartViewport
+    from src.ui.view.projection import ViewProjection
 
 
 AIR_ACTION_DEBUG_ANCHOR_TYPES = frozenset(
@@ -65,6 +67,7 @@ class NoteDebugOverlay(QWidget):
             return []
         viewport = self._viewport
         chart = viewport.chart
+        assert chart is not None
         timeline = chart.timeline
         projection = viewport.projection
         view_height = viewport.height()
@@ -77,13 +80,14 @@ class NoteDebugOverlay(QWidget):
         hi = max(top_abs_pos, bottom_abs_pos)
 
         notes: list[Note] = []
+        assert chart is not None
         for note in chart.notes:
             abs_pos = timeline.note_abs_pos(note)
             if lo - 1 <= abs_pos <= hi + 1:
                 notes.append(note)
         return notes
 
-    def paintEvent(self, event: QPaintEvent) -> None:  # noqa: N802
+    def paintEvent(self, event: QPaintEvent) -> None:  # noqa: N802, PLR0915
         if not self._active or not self._viewport or not self._viewport.chart:
             return
 
@@ -93,6 +97,7 @@ class NoteDebugOverlay(QWidget):
 
         viewport = self._viewport
         chart = viewport.chart
+        assert chart is not None
         timeline = chart.timeline
         projection = viewport.projection
         render_pos = viewport.current_pos
@@ -126,7 +131,7 @@ class NoteDebugOverlay(QWidget):
             label = nt_val
             color = get_note_color(note.note_type)
 
-            if hasattr(note, "duration") and note.duration > 0:
+            if getattr(note, "duration", 0) > 0:
                 label = f"{nt_val}"
 
             text_width = metrics.horizontalAdvance(label)
@@ -171,13 +176,13 @@ class NoteDebugOverlay(QWidget):
 
         painter.end()
 
-    def _draw_hover_tooltip(
+    def _draw_hover_tooltip(  # noqa: PLR0913
         self,
         painter: QPainter,
         note: Note,
         viewport: ChartViewport,
-        timeline: object,
-        projection: object,
+        timeline: ChartTimeline,
+        projection: ViewProjection,
         render_pos: float,
         offset_x: float,
         baseline_y: float,
@@ -226,7 +231,7 @@ class NoteDebugOverlay(QWidget):
                 line,
             )
 
-    def _build_tooltip_lines(self, note: Note, timeline: object) -> list[str]:
+    def _build_tooltip_lines(self, note: Note, timeline: ChartTimeline) -> list[str]:
         lines: list[str] = []
         abs_pos = timeline.note_abs_pos(note)
         lines.append(f"{note.note_type.value}")
@@ -239,26 +244,31 @@ class NoteDebugOverlay(QWidget):
         lines.append(f"Cell: {note.cell}  Width: {note.width}")
         lines.append(f"Abs Pos: {abs_pos:.4f}")
 
-        if hasattr(note, "duration") and note.duration:
+        note_duration = getattr(note, "duration", 0)
+        if note_duration:
             abs_end = timeline.note_abs_end_pos(note)
-            lines.append(f"Duration: {note.duration} ticks")
+            lines.append(f"Duration: {note_duration} ticks")
             lines.append(f"End Pos: {abs_end:.4f}")
 
-        if hasattr(note, "animation") and note.animation:
-            lines.append(f"Animation: {note.animation}")
+        note_animation = getattr(note, "animation", None)
+        if note_animation:
+            lines.append(f"Animation: {note_animation}")
 
-        if hasattr(note, "unknown") and note.unknown:
-            lines.append(f"Unknown: {note.unknown}")
+        note_unknown = getattr(note, "unknown", None)
+        if note_unknown:
+            lines.append(f"Unknown: {note_unknown}")
 
-        if hasattr(note, "color") and note.color:
-            lines.append(f"Color: {note.color}")
+        note_color = getattr(note, "color", None)
+        if note_color:
+            lines.append(f"Color: {note_color}")
 
-        if hasattr(note, "steps"):
-            lines.append(f"Steps: {len(note.steps)}")
+        note_steps = getattr(note, "steps", None)
+        if note_steps is not None:
+            lines.append(f"Steps: {len(note_steps)}")
 
         return lines
 
-    def _label_anchor(self, note: Note, timeline: object) -> tuple[float, float, float]:
+    def _label_anchor(self, note: Note, timeline: ChartTimeline) -> tuple[float, float, float]:
         if note.note_type in AIR_ACTION_DEBUG_ANCHOR_TYPES:
             return (
                 timeline.note_abs_end_pos(note),
@@ -290,7 +300,7 @@ class NoteDebugOverlay(QWidget):
             else:
                 self.note_hovered.emit(None)
 
-    def leaveEvent(self, event: QMouseEvent | None) -> None:  # noqa: N802
+    def leaveEvent(self, event: QEvent | None) -> None:  # noqa: N802
         if self._hovered_note is not None:
             self._hovered_note = None
             self.update()

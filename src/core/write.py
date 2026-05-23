@@ -270,19 +270,48 @@ def _soflan_lines(chart: Chart) -> list[str]:
     if chart.soflan_areas:
         lines.append("")
         for area in chart.soflan_areas:
-            lines.append(_line("SLA", area.measure, area.tick, area.cell, area.width, area.duration, area.area_id))
+            lines.append(
+                _line(
+                    "SLA",
+                    area.measure,
+                    area.tick,
+                    area.cell,
+                    area.width,
+                    area.duration,
+                    area.area_id,
+                )
+            )
     if chart.soflan_patterns:
         for pat in chart.soflan_patterns:
-            lines.append(_line("SLP", pat.measure, pat.tick, pat.duration, _format_official_float(pat.speed), pat.pattern_id))
+            lines.append(
+                _line(
+                    "SLP",
+                    pat.measure,
+                    pat.tick,
+                    pat.duration,
+                    _format_official_float(pat.speed),
+                    pat.pattern_id,
+                )
+            )
     if chart.scroll_speeds:
         for spd in chart.scroll_speeds:
-            lines.append(_line("SFL", spd.measure, spd.tick, spd.duration, _format_official_float(spd.multiplier)))
+            lines.append(
+                _line(
+                    "SFL",
+                    spd.measure,
+                    spd.tick,
+                    spd.duration,
+                    _format_official_float(spd.multiplier),
+                )
+            )
     if chart.stops:
         for stop in chart.stops:
             lines.append(_line("STP", stop.measure, stop.tick, stop.duration))
     if chart.decelerations:
         for dec in chart.decelerations:
-            lines.append(_line("DCM", dec.measure, dec.tick, dec.duration, _format_official_float(dec.rate)))
+            lines.append(
+                _line("DCM", dec.measure, dec.tick, dec.duration, _format_official_float(dec.rate))
+            )
     if chart.clicks:
         for click in chart.clicks:
             lines.append(_line("CLK", click.measure, click.tick))

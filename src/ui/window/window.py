@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import contextlib
 import logging
 from pathlib import Path
 
 from PySide6.QtCore import QElapsedTimer, QSize, Qt, QTimer, QUrl
-from PySide6.QtGui import QCloseEvent, QResizeEvent
+from PySide6.QtGui import QAction, QCloseEvent, QDesktopServices, QKeyEvent, QResizeEvent
 from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
@@ -15,6 +16,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QMainWindow,
     QMessageBox,
+    QProgressBar,
     QPushButton,
     QSlider,
     QSplitter,
@@ -23,14 +25,20 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from typing import TYPE_CHECKING
+
 from src.core.config import USER_CONFIG_DIR, get_sounds_dir, resolve_startup_data_root, settings
+from src.core.write import save_chart_file
 from src.core.const import NoteType
-from src.core.models import Chart
 from src.core.read import DataScanner, MetadataPreview, load_chart_file
 from src.engine.playback import PlaybackController
-from src.notes import Note
+
+if TYPE_CHECKING:
+    from src.core.models import Chart
+    from src.notes import Note
 from src.services.playback import PlaybackCoordinator
 from src.ui import theme
+from src.ui.theme.styles import get_main_stylesheet
 from src.ui.components.fps_overlay import FpsOverlay
 from src.ui.components.picker import ChartPicker
 from src.ui.components.play_view import PlayView3D
@@ -46,7 +54,7 @@ from src.ui.window.inspectors import (
     resolve_warning_note,
 )
 from src.ui.window.key_handler import KeyHandler
-from src.ui.window.menus import create_menu_bar
+from src.ui.window.menus import MenuCursorFilter, create_menu_bar
 from src.ui.window.metadata_editor import MetadataEditor
 from src.ui.window.overlay_manager import OverlayManager
 from src.ui.window.settings_handler import SettingsHandler
@@ -64,11 +72,11 @@ LOGGER = logging.getLogger(__name__)
 class MainWindow(QMainWindow):
     """Main application window for the Chunithm Chart Viewer."""
 
-    def __init__(self) -> None:
+    def __init__(self) -> None:  # noqa: PLR0915
         super().__init__()
         self.setWindowTitle("Chunitools")
         self.resize(settings.window_width, settings.window_height)
-        self.setStyleSheet(theme.get_main_stylesheet())
+        self.setStyleSheet(get_main_stylesheet())
 
         self.current_chart: Chart | None = None
         self.current_file_path: str | None = None
@@ -85,6 +93,37 @@ class MainWindow(QMainWindow):
         self._last_status_measure_text = "MEASURE: 0.00"
         self._inspector_grouped = True
         self._current_inspector_notes: list[Note] = []
+        self._last_export_root: str | None = None
+        self._last_export_log: str | None = None
+        self._export_cancel_requested = False
+
+        self._menu_cursor_filter: MenuCursorFilter
+        self.new_chart_action: QAction
+        self.open_chart_action: QAction
+        self.import_audio_action: QAction
+        self.save_chart_action: QAction
+        self.save_chart_as_action: QAction
+        self.save_music_xml_action: QAction
+        self.export_audio_action: QAction
+        self.export_all_action: QAction
+        self.change_data_dir_action: QAction
+        self.open_config_dir_action: QAction
+        self.undo_action: QAction
+        self.redo_action: QAction
+        self.toggle_warnings_action: QAction
+        self.toggle_radar_action: QAction
+        self.toggle_fps_action: QAction
+        self.toggle_note_debug_action: QAction
+        self.toggle_inspector_action: QAction
+        self.toggle_editor_action: QAction
+        self.toggle_export_btn_action: QAction
+        self.mode_2d_action: QAction
+        self.mode_3d_action: QAction
+        self.status_progress_host: QWidget
+        self.status_progress_layout: QHBoxLayout
+        self.status_eta_label: QLabel
+        self.status_progress: QProgressBar
+        self.status_cancel_button: QPushButton
 
         self.playback = PlaybackController(self)
         self.file_handler = FileHandler(self)
@@ -109,7 +148,7 @@ class MainWindow(QMainWindow):
         self.songs = self.scanner.scan()
         self.note_editor = NoteEditor(self)
         self.settings_handler = SettingsHandler(self)
-        self.metadata_editor: MetadataEditor | None = None
+        self.metadata_editor: MetadataEditor
 
         self._init_ui()
         self.settings_handler.apply()
@@ -125,7 +164,6 @@ class MainWindow(QMainWindow):
     def _open_config_dir(self) -> None:
         if not USER_CONFIG_DIR.exists():
             USER_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-        from PySide6.QtGui import QDesktopServices
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(USER_CONFIG_DIR)))
 
     def _change_data_root(self) -> None:
@@ -164,7 +202,6 @@ class MainWindow(QMainWindow):
             return False
         self.metadata_editor._apply_fields()
         try:
-            from src.core.write import save_chart_file
             save_chart_file(self.current_chart, self.current_file_path, source_chart_path)
         except OSError as exc:
             QMessageBox.warning(self, "Save failed", str(exc))
@@ -180,7 +217,7 @@ class MainWindow(QMainWindow):
 
     # ── UI Layout ──
 
-    def _init_ui(self) -> None:
+    def _init_ui(self) -> None:  # noqa: PLR0915
         central = QWidget()
         self.setCentralWidget(central)
         main_layout = QVBoxLayout(central)
@@ -263,7 +300,7 @@ class MainWindow(QMainWindow):
         folder_row = QHBoxLayout()
         folder_row.setSpacing(8)
         try:
-            import qtawesome as qta
+            import qtawesome as qta  # noqa: PLC0415
         except ImportError:
             qta = None
         icon_button_style = (
@@ -518,7 +555,13 @@ class MainWindow(QMainWindow):
         self.settings_handler.sync_inspector_visibility()
 
     def _update_chart_metadata(self, chart: Chart) -> None:
-        self.update_metadata_display({"bpm_def": chart.metadata.bpm_def, "creator": chart.metadata.creator})
+        self.update_metadata_display(
+            {
+                "bpm_def": chart.metadata.bpm_def,
+                "creator": chart.metadata.creator,
+                "version": chart.metadata.version,
+            }
+        )
         if not chart.metadata.bpm_def and chart.bpms:
             self._set_bpm_text(sorted({b["bpm"] for b in chart.bpms}))
 
@@ -680,8 +723,9 @@ class MainWindow(QMainWindow):
                 getattr(self, attr).setEnabled(can)
         if hasattr(self, "export_audio_action"):
             self.export_audio_action.setEnabled(has and self._chart_read_only)
-        if hasattr(self, "export_chart_action"):
-            self.export_chart_action.setEnabled(has)
+        export_chart = getattr(self, "export_chart_action", None)
+        if export_chart is not None:
+            export_chart.setEnabled(has)
         self.note_editor._sync_history_actions()
         if self.metadata_editor:
             self.metadata_editor._sync_editor_enabled()
@@ -729,10 +773,8 @@ class MainWindow(QMainWindow):
 
     def _jump_to_position(self) -> None:
         if self.current_chart:
-            try:
-                self.playback_service.seek(float(self.jump_input.text()))
-            except ValueError:
-                pass
+              with contextlib.suppress(ValueError):
+                  self.playback_service.seek(float(self.jump_input.text()))
 
     # ── Events ──
 
@@ -747,7 +789,7 @@ class MainWindow(QMainWindow):
         self.playback_service.shutdown()
         super().closeEvent(event)
 
-    def keyPressEvent(self, event):  # noqa: ANN401
+    def keyPressEvent(self, event: QKeyEvent) -> None:  # noqa: ANN401
         if not self.key_handler.handle_key(event):
             super().keyPressEvent(event)
 

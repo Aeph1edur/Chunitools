@@ -1,16 +1,21 @@
-import os
-from pathlib import Path
-from PIL import Image
-from PySide6.QtCore import Qt, QRectF
-from PySide6.QtGui import QImage, QImageWriter, QPainter, QLinearGradient, QPen, QFont
+from __future__ import annotations
 
-from src.core.models import Chart
-from src.notes import Note
-from src.ui.view.chart_renderer import ChartRenderer
+import os
+from typing import TYPE_CHECKING
+
+from PIL import Image
+from PySide6.QtCore import QRectF, Qt
+from PySide6.QtGui import QFont, QImage, QImageWriter, QLinearGradient, QPainter, QPen
+
 from src.ui import theme
 
+if TYPE_CHECKING:
+    from src.core.models import Chart
+    from src.notes import Note
+    from src.ui.view.chart_renderer import ChartRenderer
 
-def render_segment(
+
+def render_segment(  # noqa: PLR0913
     painter: QPainter,
     chart: Chart,
     painter_engine: ChartRenderer,
@@ -31,10 +36,15 @@ def render_segment(
     # We want top of view to be start_measure + chunk
     top_abs_pos = float(end_measure)
     bottom_abs_pos = float(start_measure)
-    
+
     # Clipping rect to prevent notes from bleeding out of the segment area
     # Relative to the translated state (anchor at bottom)
-    clip_rect = QRectF(0, -float(chunk * projection.measure_height) - 40, chart_width, float(chunk * projection.measure_height) + 80)
+    clip_rect = QRectF(
+        0,
+        -float(chunk * projection.measure_height) - 40,
+        chart_width,
+        float(chunk * projection.measure_height) + 80,
+    )
     painter.setClipRect(clip_rect)
 
     painter_engine.draw_lane_lines(painter, fake_cur_pos, top_abs_pos, bottom_abs_pos)
@@ -48,15 +58,15 @@ def render_segment(
     for note in chart.notes:
         if note.measure <= end_measure and chart.timeline.note_abs_end_pos(note) >= start_measure:
             visible.append(note)
-            
+
     painter_engine.draw_notes(painter, visible, fake_cur_pos)
     painter.restore()
 
 
-def _draw_gutter(
+def _draw_gutter(  # noqa: PLR0913
     painter: QPainter,
-    x: int,
-    width: int,
+    x: float,
+    width: float,
     img_height: int,
     measure_height: float,
     measures_per_column: int,
@@ -74,16 +84,16 @@ def _draw_gutter(
 
     painter.setPen(Qt.PenStyle.NoPen)
     painter.setBrush(grad)
-    painter.drawRect(x, 20, width, img_height - 40)
+    painter.drawRect(int(x), 20, int(width), img_height - 40)
 
     # Gutter edge highlights
     painter.setPen(QPen(theme.qt(theme.BORDER_CONTROL), 1))
-    painter.drawLine(x + 1, 20, x + 1, img_height - 20)
-    painter.drawLine(x + width - 1, 20, x + width - 1, img_height - 20)
+    painter.drawLine(int(x) + 1, 20, int(x) + 1, img_height - 20)
+    painter.drawLine(int(x + width) - 1, 20, int(x + width) - 1, img_height - 20)
 
     # Measure separation ticks and numbers
     painter.setPen(QPen(theme.qt(theme.BORDER_CONTROL_SOFT), 1))
-    
+
     if draw_labels:
         font = painter.font()
         font.setPointSizeF(28.0)
@@ -95,18 +105,14 @@ def _draw_gutter(
         if 20 <= y <= img_height - 20:
             # Draw tick
             painter.setPen(QPen(theme.qt(theme.BORDER_CONTROL_SOFT), 1))
-            painter.drawLine(x + 5, y, x + width - 5, y)
-            
+            painter.drawLine(int(x) + 5, y, int(x + width) - 5, y)
+
             if draw_labels:
                 # Draw Measure Number (Centered in gutter)
                 measure_idx = start_m + m
                 painter.setPen(theme.qt(theme.TEXT_MEASURE))
                 label_rect = QRectF(float(x), float(y - 25), float(width), 50.0)
-                painter.drawText(
-                    label_rect, 
-                    Qt.AlignmentFlag.AlignCenter, 
-                    str(measure_idx)
-                )
+                painter.drawText(label_rect, Qt.AlignmentFlag.AlignCenter, str(measure_idx))
 
 
 def _load_dds_to_image(path: str) -> QImage:
@@ -126,7 +132,7 @@ def _load_dds_to_image(path: str) -> QImage:
         return QImage()
 
 
-def export_to_image(
+def export_to_image(  # noqa: PLR0913, PLR0915
     chart: Chart,
     painter_engine: ChartRenderer,
     file_path: str,
@@ -137,13 +143,13 @@ def export_to_image(
 ) -> bool:
     # Use current projection settings for export density
     projection = painter_engine.projection
-    
+
     try:
         # Calculate true chart length considering note durations and metadata events
         last_note_end = max((chart.timeline.note_abs_end_pos(n) for n in chart.notes), default=0.0)
         last_bpm_m = max((b["measure"] for b in chart.bpms), default=0)
         last_sig_m = max((s["measure"] for s in chart.signatures), default=0)
-        
+
         total_measures = int(max(last_note_end, float(last_bpm_m), float(last_sig_m))) + 1
         num_columns = (total_measures + measures_per_column - 1) // measures_per_column
 
@@ -153,7 +159,7 @@ def export_to_image(
 
         # Header logic: 800px jacket + padding
         header_height = 840 if (jacket_path or chart.metadata.title) else 0
-        
+
         img_width = int(num_columns * column_width + 50)
         img_height = int(measures_per_column * projection.measure_height + 120 + header_height)
 
@@ -168,7 +174,7 @@ def export_to_image(
             painter.save()
             header_margin = 40
             current_x = float(header_margin)
-            
+
             # 1. Jacket Art
             if jacket_path:
                 jacket_img = _load_dds_to_image(jacket_path)
@@ -176,56 +182,87 @@ def export_to_image(
                     target_rect = QRectF(float(header_margin), 20.0, 800.0, 800.0)
                     painter.drawImage(target_rect, jacket_img)
                     current_x += 840.0
-            
+
             # 2. Song Info
             title_font = QFont(theme.FONT_UI, 180, QFont.Weight.Bold)
             painter.setFont(title_font)
             painter.setPen(theme.qt(theme.TEXT_PRIMARY))
             title_y = 260.0
             painter.drawText(int(current_x), int(title_y), chart.metadata.title or "Untitled")
-            
+
             creator_font = QFont(theme.FONT_UI, 90)
             painter.setFont(creator_font)
             painter.setPen(theme.qt(theme.TEXT_SOFT))
-            painter.drawText(int(current_x), int(title_y + 200), f"Charter: {chart.metadata.creator or 'Unknown'}")
-            
+            painter.drawText(
+                int(current_x),
+                int(title_y + 200),
+                f"Charter: {chart.metadata.creator or 'Unknown'}",
+            )
+
             # 3. Difficulty & Level
             painter.setPen(theme.qt(theme.TEXT_SOFT))
-            diff_text = f"{chart.metadata.difficulty or 'Unknown'} {chart.metadata.level or ''}".strip()
+            diff_text = (
+                f"{chart.metadata.difficulty or 'Unknown'} {chart.metadata.level or ''}".strip()
+            )
             painter.drawText(int(current_x), int(title_y + 340), diff_text)
-            
+
             # Bottom border for header
             painter.setPen(QPen(theme.qt(theme.BORDER_CONTROL_SOFT), 2))
-            painter.drawLine(header_margin, header_height - 10, img_width - header_margin, header_height - 10)
+            painter.drawLine(
+                header_margin, header_height - 10, img_width - header_margin, header_height - 10
+            )
             painter.restore()
 
         for col in range(num_columns):
             start_m = col * measures_per_column
             # x_left is the start of the lane area
             x_left = col * column_width + 110
-            
+
             painter.save()
             painter.translate(0, header_height)
 
             # --- Draw Left Gutter ---
-            _draw_gutter(painter, x_left - 85, 75, img_height - header_height, projection.measure_height, measures_per_column, start_m, draw_labels=True)
-            
+            _draw_gutter(
+                painter,
+                x_left - 85,
+                75,
+                img_height - header_height,
+                projection.measure_height,
+                measures_per_column,
+                start_m,
+                draw_labels=True,
+            )
+
             # --- Draw Right Gutter ---
-            _draw_gutter(painter, x_left + lane_area_width + 10, 75, img_height - header_height, projection.measure_height, measures_per_column, start_m, draw_labels=False)
-            
+            _draw_gutter(
+                painter,
+                x_left + lane_area_width + 10,
+                75,
+                img_height - header_height,
+                projection.measure_height,
+                measures_per_column,
+                start_m,
+                draw_labels=False,
+            )
+
             # Lane area borders
             painter.setPen(QPen(theme.qt(theme.BORDER_CONTROL), 2))
-            painter.drawLine(x_left, 20, x_left, img_height - header_height - 20)
-            painter.drawLine(x_left + lane_area_width, 20, x_left + lane_area_width, img_height - header_height - 20)
-            
+            painter.drawLine(int(x_left), 20, int(x_left), int(img_height - header_height - 20))
+            painter.drawLine(
+                int(x_left + lane_area_width),
+                20,
+                int(x_left + lane_area_width),
+                int(img_height - header_height - 20),
+            )
+
             render_segment(
-                painter, 
-                chart, 
-                painter_engine, 
-                int(x_left), 
-                int(img_height - header_height - 40), 
-                start_m, 
-                measures_per_column
+                painter,
+                chart,
+                painter_engine,
+                int(x_left),
+                int(img_height - header_height - 40),
+                start_m,
+                measures_per_column,
             )
             painter.restore()
 

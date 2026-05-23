@@ -9,8 +9,10 @@ import tempfile
 import wave
 from array import array
 from pathlib import Path
-from types import TracebackType
-from typing import Protocol
+from typing import TYPE_CHECKING, Any, Protocol, cast
+
+if TYPE_CHECKING:
+    from types import TracebackType
 
 from PySide6.QtCore import QIODevice, QObject, QTimer
 from PySide6.QtMultimedia import QAudioFormat, QAudioSink
@@ -46,6 +48,7 @@ class _PcmAudioStream(Protocol):
 
     def read_pcm16(self, frame_count: int) -> bytes:
         """Decode up to frame_count PCM16 frames from the current position."""
+        ...
 
     def seek_samples(self, position: int) -> None:
         """Seek to an absolute sample position."""
@@ -66,6 +69,7 @@ class _PcmAudioStream(Protocol):
 # ---------------------------------------------------------------------------
 # vgmstream-cli based decoder
 # ---------------------------------------------------------------------------
+
 
 def _vgmstream_cli_path() -> Path | None:
     """Return the bundled vgmstream-cli path, or None if not found."""
@@ -105,7 +109,7 @@ class _VgmstreamCliStream:
 
         # Decode to a temporary WAV file. We keep the temp file open so
         # _WavePcmStream can read it; it gets cleaned up in close().
-        self._tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+        self._tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)  # noqa: SIM115
         tmp_path = Path(self._tmp.name)
         self._tmp.close()
 
@@ -118,9 +122,7 @@ class _VgmstreamCliStream:
         except subprocess.CalledProcessError as exc:
             tmp_path.unlink(missing_ok=True)
             stderr = exc.stderr.decode(errors="replace").strip()
-            raise VgmstreamError(
-                f"vgmstream-cli failed to decode {source_path}: {stderr}"
-            ) from exc
+            raise VgmstreamError(f"vgmstream-cli failed to decode {source_path}: {stderr}") from exc
 
         self._tmp_path = tmp_path
         self._wav = _WavePcmStream(tmp_path)
@@ -154,12 +156,13 @@ class _VgmstreamCliStream:
 # WAV decoder
 # ---------------------------------------------------------------------------
 
+
 class _WavePcmStream:
     """Decode PCM WAV files into interleaved signed 16-bit frames."""
 
     def __init__(self, source_path: Path) -> None:
         try:
-            self._wave = wave.open(str(source_path), "rb")
+            self._wave = wave.open(str(source_path), "rb")  # noqa: SIM115
         except wave.Error as exc:
             raise AudioSourceError(f"could not read WAV file {source_path}: {exc}") from exc
 
@@ -212,14 +215,15 @@ class _WavePcmStream:
 # FLAC decoder
 # ---------------------------------------------------------------------------
 
+
 class _FlacPcmStream:
     """Decode FLAC files with pyFLAC into seekable interleaved signed 16-bit frames."""
 
     def __init__(self, source_path: Path) -> None:
         try:
-            import numpy as np
-            import pyflac
-            import soundfile as sf
+            import numpy as np  # noqa: PLC0415
+            import pyflac  # noqa: PLC0415
+            import soundfile as sf  # noqa: PLC0415
         except ImportError as exc:
             raise AudioSourceError(
                 "could not import pyFLAC; install pyflac to play FLAC custom audio"
@@ -262,7 +266,7 @@ class _FlacPcmStream:
             return b""
         chunk = self._samples[self._position : end_position]
         self._position = end_position
-        return chunk.tobytes()
+        return cast("bytes", chunk.tobytes())
 
     def seek_samples(self, position: int) -> None:
         self._position = max(0, min(position, self.play_samples))
@@ -286,6 +290,7 @@ class _FlacPcmStream:
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _pcm_bytes_to_int16(raw: bytes, sample_width: int) -> bytes:
     output = array("h")
     if sample_width == 1:
@@ -303,8 +308,8 @@ def _pcm_bytes_to_int16(raw: bytes, sample_width: int) -> bytes:
     return output.tobytes()
 
 
-def _numpy_audio_to_int16(samples):
-    import numpy as np
+def _numpy_audio_to_int16(samples: Any) -> Any:
+    import numpy as np  # noqa: PLC0415
 
     if samples.dtype == np.int16:
         return np.ascontiguousarray(samples)
@@ -336,6 +341,7 @@ def _platform_dir_name() -> str:
 # ---------------------------------------------------------------------------
 # Public player
 # ---------------------------------------------------------------------------
+
 
 class MusicStreamPlayer(QObject):
     """Stream decoded song PCM directly into Qt audio output."""

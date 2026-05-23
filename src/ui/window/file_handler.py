@@ -6,9 +6,11 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QFileDialog, QMessageBox
 
+from src.core.config import settings
 from src.core.write import create_blank_chart, save_chart_file, save_music_xml as write_music_xml
 
 if TYPE_CHECKING:
+    from src.core.models import Chart
     from src.ui.window.window import MainWindow
 
 
@@ -19,11 +21,11 @@ class FileHandler:
         self.w = window
 
     @property
-    def _chart(self):
+    def _chart(self) -> Chart | None:
         return self.w.current_chart
 
     @_chart.setter
-    def _chart(self, v):
+    def _chart(self, v: Chart | None) -> None:
         self.w.current_chart = v
 
     # ── Confirm discard ──
@@ -164,7 +166,6 @@ class FileHandler:
             os.path.expanduser("~"),
         )
         if path:
-            from src.core.config import settings
             settings.data_root = path
             settings.save()
             return path

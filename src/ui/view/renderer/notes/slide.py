@@ -1,22 +1,20 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QBrush, QColor, QPainter, QPen, QPolygonF
 
 from src.core.const import NoteType, RenderRole
 from src.notes.slide import Slide, SlideTo
-
-if TYPE_CHECKING:
-    from src.ui.view.renderer.base import SlidePathPoint
+from src.ui.view.renderer.notes.support import RendererMixinSupport, SlidePathPoint
 
 NOTE_ROLE_START = "ST"
 NOTE_ROLE_LINE_CONTROL = "LC"
 NOTE_ROLE_END = "EN"
 
 
-class SlideRendererMixin:
+class SlideRendererMixin(RendererMixinSupport):
     def _draw_slide_background(
         self,
         painter: QPainter,
@@ -41,7 +39,7 @@ class SlideRendererMixin:
 
         color = self.colors.slide_line
 
-        for a, b in zip(points, points[1:]):
+        for a, b in zip(points, points[1:], strict=False):
             self._draw_slide_segment_ribbon(painter, a, b, color)
 
         centers = [point.center for point in points]
@@ -104,11 +102,7 @@ class SlideRendererMixin:
             master_type = (
                 NoteType.SLD
                 if note.note_type == NoteType.SLC
-                else (
-                    NoteType.SXD
-                    if note.note_type == NoteType.SXC
-                    else note.note_type
-                )
+                else (NoteType.SXD if note.note_type == NoteType.SXC else note.note_type)
             )
             if self.visible_note_types.get(master_type.value, True):
                 self._draw_tap(
@@ -126,9 +120,7 @@ class SlideRendererMixin:
                 self.visible_note_types.get(step.note_type.value, True)
                 and self._slide_step_role(index, step_count, step) == NOTE_ROLE_START
             ):
-                self._draw_step_tap(
-                    painter, step, current_tick, current_position, timeline
-                )
+                self._draw_step_tap(painter, step, current_tick, current_position, timeline)
         if not timeline.note_has_successor(note):
             last_step = note.steps[-1] if note.steps else note
             end_tick = timeline.note_end_tick(note)
@@ -142,19 +134,18 @@ class SlideRendererMixin:
             master_type = (
                 NoteType.SLD
                 if note.note_type == NoteType.SLC
-                else (
-                    NoteType.SXD
-                    if note.note_type == NoteType.SXC
-                    else note.note_type
-                )
+                else (NoteType.SXD if note.note_type == NoteType.SXC else note.note_type)
             )
             if self.visible_note_types.get(master_type.value, True):
-                y_end, (x_pos, width) = self.projection.y(
-                    end_tick / timeline.resolution,
-                    current_position,
-                ), (
-                    self.projection.x(end_cell),
-                    self.projection.w(end_width),
+                y_end, (x_pos, width) = (
+                    self.projection.y(
+                        end_tick / timeline.resolution,
+                        current_position,
+                    ),
+                    (
+                        self.projection.x(end_cell),
+                        self.projection.w(end_width),
+                    ),
                 )
                 rect = QRectF(
                     x_pos,
@@ -162,9 +153,7 @@ class SlideRendererMixin:
                     width,
                     self.constants.HEAD_HEIGHT,
                 )
-                self._draw_rounded_rect(
-                    painter, rect, self._slide_endpoint_color(last_step)
-                )
+                self._draw_rounded_rect(painter, rect, self._slide_endpoint_color(last_step))
 
     def _draw_slide_foreground_orphan(
         self,
@@ -176,23 +165,22 @@ class SlideRendererMixin:
         master = (
             NoteType.SLD
             if note.note_type == NoteType.SLC
-            else (
-                NoteType.SXD
-                if note.note_type == NoteType.SXC
-                else note.note_type
-            )
+            else (NoteType.SXD if note.note_type == NoteType.SXC else note.note_type)
         )
         if not self.visible_note_types.get(master.value, True):
             return
         color = self._slide_start_color(note)
         self._draw_tap(painter, note, current_position, timeline, color)
         if not timeline.note_has_successor(note):
-            y_end, (x_pos, width) = self.projection.y(
-                timeline.note_end_tick(note) / timeline.resolution,
-                current_position,
-            ), (
-                self.projection.x(note.end_cell),
-                self.projection.w(note.end_width),
+            y_end, (x_pos, width) = (
+                self.projection.y(
+                    timeline.note_end_tick(note) / timeline.resolution,
+                    current_position,
+                ),
+                (
+                    self.projection.x(note.end_cell),
+                    self.projection.w(note.end_width),
+                ),
             )
             rect = QRectF(
                 x_pos,
@@ -212,12 +200,12 @@ class SlideRendererMixin:
     ) -> None:
         if not self.visible_note_types.get(step.note_type.value, True):
             return
-        y, x, w = self.projection.y(
-            absolute_tick / timeline.resolution, current_position
-        ), self.projection.x(step.end_cell), self.projection.w(step.end_width)
-        rect = QRectF(
-            x, y - self.constants.HEAD_HEIGHT / 2, w, self.constants.HEAD_HEIGHT
+        y, x, w = (
+            self.projection.y(absolute_tick / timeline.resolution, current_position),
+            self.projection.x(step.end_cell),
+            self.projection.w(step.end_width),
         )
+        rect = QRectF(x, y - self.constants.HEAD_HEIGHT / 2, w, self.constants.HEAD_HEIGHT)
 
         if timeline.note_render_role(step) == RenderRole.CONTROL:
             pixmap_key = ("control_point", "#808080", w)
@@ -226,9 +214,7 @@ class SlideRendererMixin:
                 lambda p, r: (
                     p.setPen(self.cache.get_pen(QColor("#808080"), 1)),
                     p.setBrush(
-                        self.cache.get_brush(
-                            QColor("#808080"), self.constants.CONTROL_POINT_ALPHA
-                        )
+                        self.cache.get_brush(QColor("#808080"), self.constants.CONTROL_POINT_ALPHA)
                     ),
                     p.drawRoundedRect(
                         r,
@@ -244,20 +230,19 @@ class SlideRendererMixin:
 
         color = self._slide_endpoint_color(step)
         pixmap_key = self._tap_pixmap_key(color, w, "tap")
+        def draw_cached_step(p: QPainter, r: QRectF) -> None:
+            self._draw_rounded_rect(p, r, color)
+            self._draw_tap_symbol(p, r)
+
         pixmap = self.cache.get_pixmap(
             pixmap_key,
-            lambda p, r: (
-                self._draw_rounded_rect(p, r, color),
-                self._draw_tap_symbol(p, r),
-            ),
+            draw_cached_step,
             w,
             self.constants.HEAD_HEIGHT,
         )
         painter.drawPixmap(rect.topLeft().toPoint(), pixmap)
 
-    def _slide_step_role(
-        self, index: int, step_count: int, step: Any
-    ) -> str:
+    def _slide_step_role(self, index: int, step_count: int, step: Any) -> str:
         if index == step_count - 1:
             return NOTE_ROLE_END
         if step.note_type == NoteType.SLD:
@@ -336,11 +321,7 @@ class SlideRendererMixin:
             ),
         ]
 
-    def _slide_path_point(
-        self, cell: int, width: int, y: float
-    ) -> SlidePathPoint:
-        from src.ui.view.renderer.base import SlidePathPoint
-
+    def _slide_path_point(self, cell: int, width: int, y: float) -> SlidePathPoint:
         x = self.projection.x(float(cell))
         w = self.projection.w(float(width))
         return SlidePathPoint(

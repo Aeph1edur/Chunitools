@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+
 from src.notes.base import Note
+
 
 @dataclass(frozen=True, kw_only=True, slots=True)
 class Air(Note):
     """Air arrow notes (AIR, AUR, AUL, ADW, ADR, ADL)."""
+
     target_note: str
     color: str = "DEF"
 
@@ -14,18 +17,22 @@ class Air(Note):
             return [self.target_note]
         return [self.target_note, self.color]
 
+
 @dataclass(frozen=True, kw_only=True, slots=True)
 class AirHoldStart(Note):
     """Air Hold Start (AHD)."""
+
     target_note: str
     duration: int
 
     def get_extra_parts(self) -> list[str]:
         return [self.target_note, str(self.duration)]
 
+
 @dataclass(frozen=True, kw_only=True, slots=True)
 class AirHold(Note):
     """Purple air-action note attached to an air hold (AHX)."""
+
     target_note: str
     duration: int
     color: str
@@ -33,9 +40,11 @@ class AirHold(Note):
     def get_extra_parts(self) -> list[str]:
         return [self.target_note, str(self.duration), self.color]
 
+
 @dataclass(frozen=True, kw_only=True, slots=True)
 class CrashSlide(Note):
     """ALD air trace/effect; color NON is AIR-ACTION/AIR CRUSH."""
+
     crush_interval: int
     """Tick interval between crush elements (0 = no crush, 38400 = single-shot AIR-ACTION)."""
     starting_height: float
@@ -47,13 +56,20 @@ class CrashSlide(Note):
 
     def get_extra_parts(self) -> list[str]:
         return [
-            str(self.crush_interval), str(self.starting_height), str(self.duration),
-            str(self.end_cell), str(self.end_width), str(self.target_height), self.color
+            str(self.crush_interval),
+            str(self.starting_height),
+            str(self.duration),
+            str(self.end_cell),
+            str(self.end_width),
+            str(self.target_height),
+            self.color,
         ]
+
 
 @dataclass(frozen=True, kw_only=True, slots=True)
 class AirSlide(Note):
     """ASD/ASC air slide wrapper segment."""
+
     target_note: str
     starting_height: float
     duration: int
@@ -64,13 +80,20 @@ class AirSlide(Note):
 
     def get_extra_parts(self) -> list[str]:
         return [
-            self.target_note, str(self.starting_height), str(self.duration),
-            str(self.end_cell), str(self.end_width), str(self.target_height), self.color
+            self.target_note,
+            str(self.starting_height),
+            str(self.duration),
+            str(self.end_cell),
+            str(self.end_width),
+            str(self.target_height),
+            self.color,
         ]
+
 
 @dataclass(frozen=True, kw_only=True, slots=True)
 class AirSlideStart(Note):
     """Joined ASD/ASC air slide wrapper."""
+
     steps: tuple[AirSlide, ...]
 
     @property

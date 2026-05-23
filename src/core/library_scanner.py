@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from src.core.library_models import FumenInfo, SongInfo
@@ -41,7 +42,7 @@ class DataScanner:
     def scan(self) -> list[SongInfo]:
         """
         Scan the data root for Music.xml files and parse song metadata.
-        
+
         Returns:
             A list of SongInfo objects discovered under the configured data root.
         """
@@ -51,12 +52,11 @@ class DataScanner:
         xml_paths = sorted(self.data_root.glob(MUSIC_XML_PATTERN))
         if not xml_paths:
             return []
-        
+
         # Parallelize XML parsing to speed up large library scans
-        from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor() as executor:
             songs = list(executor.map(self._parse_music_xml, xml_paths))
-            
+
         return [s for s in songs if s is not None]
 
     def _parse_music_xml(self, xml_path: Path) -> SongInfo | None:

@@ -114,7 +114,7 @@ def note_has_steps(note: Note) -> bool:
     return isinstance(note, _COMPOSITE_NOTE_CLASSES)
 
 
-def note_get_steps(note: Note) -> tuple:
+def note_get_steps(note: Note) -> tuple[Note, ...]:
     """Get the steps of a composite note, or an empty tuple."""
     try:
         return tuple(getattr(note, "steps", ()))

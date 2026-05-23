@@ -165,16 +165,36 @@ class RenderRole(enum.Enum):
 
 GROUND_NOTE_TYPES: frozenset[NoteType] = frozenset(
     {
-        NoteType.TAP, NoteType.CHR, NoteType.HLD, NoteType.HXD,
-        NoteType.SLD, NoteType.SXD, NoteType.SLC, NoteType.SXC,
-        NoteType.FLK, NoteType.MNE,
+        NoteType.TAP,
+        NoteType.CHR,
+        NoteType.HLD,
+        NoteType.HXD,
+        NoteType.SLD,
+        NoteType.SXD,
+        NoteType.SLC,
+        NoteType.SXC,
+        NoteType.FLK,
+        NoteType.MNE,
     }
 )
 
 AIR_TRACE_COLORS: frozenset[str] = frozenset(
     {
-        "DEF", "NON", "PNK", "GRY", "RED", "ORN", "YEL", "AQA",
-        "PPL", "CYN", "BLK", "VLT", "LIM", "BLU", "GRN",
+        "DEF",
+        "NON",
+        "PNK",
+        "GRY",
+        "RED",
+        "ORN",
+        "YEL",
+        "AQA",
+        "PPL",
+        "CYN",
+        "BLK",
+        "VLT",
+        "LIM",
+        "BLU",
+        "GRN",
     }
 )
 

@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import os
 import subprocess
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from PySide6.QtCore import QPoint, Qt, QTimer, Signal
-from PySide6.QtGui import QAction, QFont
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+from PySide6.QtGui import QAction, QFont, QMouseEvent
 from PySide6.QtWidgets import (
+    QApplication,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -14,6 +18,7 @@ from PySide6.QtWidgets import (
     QListView,
     QMenu,
     QPushButton,
+    QStyleOptionViewItem,
     QVBoxLayout,
     QWidget,
 )
@@ -94,19 +99,20 @@ _MODE_BUTTON_STYLESHEET = f"""
 class PickerListView(QListView):
     """Custom list view to handle dynamic cursor changes on difficulty markers."""
 
-    def mouseMoveEvent(self, event) -> None:
+    on_difficulty_clicked: Callable[[str, SongInfo], None] | None = None
+
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
         super().mouseMoveEvent(event)
         pos = event.position().toPoint()
         index = self.indexAt(pos)
         if index.isValid():
             delegate = self.itemDelegate()
-            if hasattr(delegate, "hit_test_difficulty"):
-                from PySide6.QtWidgets import QStyleOptionViewItem
-
+            hit_test = getattr(delegate, "hit_test_difficulty", None)
+            if hit_test is not None:
                 option = QStyleOptionViewItem()
                 option.widget = self
                 option.rect = self.visualRect(index)
-                if delegate.hit_test_difficulty(option, index, pos):
+                if hit_test(option, index, pos):
                     self.viewport().setCursor(Qt.CursorShape.PointingHandCursor)
                     return
         self.viewport().unsetCursor()
@@ -274,7 +280,6 @@ class ChartPicker(QWidget):
 
     @staticmethod
     def _copy_to_clipboard(text: str) -> None:
-        from PySide6.QtWidgets import QApplication
         cb = QApplication.clipboard()
         if cb:
             cb.setText(text)
@@ -377,5 +382,5 @@ class ChartPicker(QWidget):
     def _metadata_preview(song: SongInfo) -> MetadataPreview:
         """Read preview metadata from first available chart."""
         if not song.fumens:
-            return {"bpm_def": None, "creator": None}
+            return {"bpm_def": None, "creator": None, "version": None}
         return fast_get_metadata(song.fumens[0].file_path)

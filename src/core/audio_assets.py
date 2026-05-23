@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from src.core.models import Chart
+if TYPE_CHECKING:
+    from src.core.models import Chart
 
 __all__ = ["resolve_chart_audio_path", "resolve_chart_awb_path"]
 

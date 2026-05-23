@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+# ruff: noqa: PLR0913
+
 import logging
 import math
 from typing import TYPE_CHECKING
@@ -10,16 +12,17 @@ from PySide6.QtGui import (
     QColor,
     QFont,
     QLinearGradient,
+    QMouseEvent,
     QPainter,
     QPaintEvent,
     QPen,
     QPolygonF,
+    QResizeEvent,
     QWheelEvent,
 )
 from PySide6.QtWidgets import QWidget
 
 from src.core.const import AIR_NOTE_TYPES, NoteType, RenderRole
-from src.core.models import Chart
 from src.engine.soflan import SoflanProjector
 from src.notes import (
     AirSlideStart,
@@ -33,6 +36,7 @@ from src.ui.view import timeline_compat
 LOGGER = logging.getLogger("ui.3dview")
 
 if TYPE_CHECKING:
+    from src.core.models import Chart
     from src.engine.playback import PlaybackController
     from src.engine.timeline import ChartTimeline
 
@@ -463,7 +467,7 @@ class PlayView3D(QWidget):
         self._refresh_timer.setInterval(REPAINT_INTERVAL_MS)
         self._refresh_timer.timeout.connect(self.update)
 
-        from src.ui.components.note_debug_overlay_3d import NoteDebugOverlay3D
+        from src.ui.components.note_debug_overlay_3d import NoteDebugOverlay3D  # noqa: PLC0415
         self._debug_overlay = NoteDebugOverlay3D(self)
         self._debug_overlay.set_play_view(self)
 
@@ -471,7 +475,7 @@ class PlayView3D(QWidget):
         self._debug_overlay.set_active(active)
         self.update()
 
-    def resizeEvent(self, event) -> None:  # noqa: N802
+    def resizeEvent(self, event: QResizeEvent) -> None:  # noqa: N802
         super().resizeEvent(event)
         self._debug_overlay.setGeometry(self.rect())
 
@@ -980,12 +984,14 @@ class PlayView3D(QWidget):
 
         return get_note_color(note.note_type)
 
-    def _draw_notes(self, painter: QPainter, judge_time: float) -> None:
+    def _draw_notes(self, painter: QPainter, judge_time: float) -> None:  # noqa: PLR0912
         w, h = self.width(), self.height()
         vanish_x = w / 2.0
         vanish_y = h * 0.10
         judge_y = h * 0.90
 
+        if not self.chart:
+            return
         visible_notes = []
         tl = self.chart.timeline
         for note in self._notes:
@@ -1057,7 +1063,7 @@ class PlayView3D(QWidget):
             self._draw_air_arrow_for_note(painter, *payload)
         self._deferred_air_arrows.clear()
 
-    def _draw_note(
+    def _draw_note(  # noqa: PLR0912
         self,
         painter: QPainter,
         note: Note,
@@ -1290,8 +1296,8 @@ class PlayView3D(QWidget):
             painter.setBrush(gold)
             painter.drawPolygon(poly)
 
-            left_mid = (corners[0] + corners[3]) / 2.0
-            right_mid = (corners[1] + corners[2]) / 2.0
+            left_mid = (corners[0] + corners[3]) * 0.5
+            right_mid = (corners[1] + corners[2]) * 0.5
             painter.setPen(QPen(QColor(255, 255, 200, alpha // 2), 1))
             painter.drawLine(left_mid, right_mid)
         else:
@@ -1358,9 +1364,9 @@ class PlayView3D(QWidget):
         painter.setBrush(QColor(color.red(), color.green(), color.blue(), alpha))
         painter.drawPolygon(poly)
 
-        left_mid = (corners[0] + corners[3]) / 2.0
-        right_mid = (corners[1] + corners[2]) / 2.0
-        center = (left_mid + right_mid) / 2.0
+        left_mid = (corners[0] + corners[3]) * 0.5
+        right_mid = (corners[1] + corners[2]) * 0.5
+        center = (left_mid + right_mid) * 0.5
 
         painter.setPen(QPen(QColor(255, 255, 255, alpha), max(1, int(scale * 1.5))))
         dx = 3 * scale
@@ -2242,6 +2248,8 @@ class PlayView3D(QWidget):
 
         crush_interval = getattr(note, "crush_interval", getattr(note, "crush_tick", 0))
         if crush_interval > 0:
+            if not self.chart:
+                return
             tl = self.chart.timeline
             start_tick = tl.note_tick(note)
             for offset_tick in range(0, dur + 1, crush_interval):
@@ -2425,7 +2433,7 @@ class PlayView3D(QWidget):
             time_text,
         )
 
-    def mousePressEvent(self, event) -> None:  # noqa: N802 - Qt override.
+    def mousePressEvent(self, event: QMouseEvent) -> None:  # noqa: N802 - Qt override.
         if not self.chart:
             return
         w = self.width()

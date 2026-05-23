@@ -77,7 +77,6 @@ class ChartMetadata:
     """Optional custom chart music path for editor-created charts."""
 
 
-
 class TimeSignatureEntry(TypedDict):
     """A single time signature change event."""
 
@@ -87,7 +86,6 @@ class TimeSignatureEntry(TypedDict):
 
 
 class BpmEntry(TypedDict):
-
     """A single BPM change event parsed from the chart header."""
 
     measure: int
@@ -178,7 +176,7 @@ class Chart:
     def timeline(self) -> ChartTimeline:
         """Get the spatial-temporal timeline for this chart."""
         if self._timeline is None:
-            from src.engine.timeline import ChartTimeline
+            from src.engine.timeline import ChartTimeline  # noqa: PLC0415
 
             self._timeline = ChartTimeline(self)
         return self._timeline
