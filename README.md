@@ -54,7 +54,7 @@ Pushing a tag triggers CI to build for all platforms and uploads to GitHub Relea
 # 1. Make sure everything is committed
 git status
 
-# 2. Tag the release (pre-release / alpha / stable as appropriate)
+# 2. Tag the release
 git tag v0.1.0
 
 # 3. Push the tag
