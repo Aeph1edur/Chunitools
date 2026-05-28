@@ -34,23 +34,6 @@ jobs:
       - run: uv sync --group dev
       - run: uv run basedpyright src/
 
-  build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-        with:
-          python-version: "3.13"
-      - run: uv sync --group dev
-      - name: Build executable
-        run: python3 build.py
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: chunitools-linux
-          path: builds/chunitools_linux.tar.gz
-          if-no-files-found: error
 
   test:
     runs-on: ubuntu-latest
