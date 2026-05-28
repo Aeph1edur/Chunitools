@@ -609,16 +609,13 @@ class AirRendererMixin(RendererMixinSupport):
         y = self.projection.y(abs_pos, current_position)
         x = self.projection.x(float(cell))
         w = self.projection.w(float(width))
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QBrush(get_action_bar_color()))
-        painter.drawRect(
-            QRectF(
-                x,
-                y - self.constants.ACTION_BAR_HEIGHT / 2,
-                w,
-                self.constants.ACTION_BAR_HEIGHT,
-            )
-        )
+        h = self.constants.HEAD_HEIGHT
+        rect = QRectF(x, y - h / 2, w, h)
+
+        color = get_action_bar_color()
+        # Draw as tap-style note head: gradient fill, border, white line
+        self._draw_rounded_rect(painter, rect, color)
+        self._draw_tap_symbol(painter, rect)
 
     def _draw_air_end_bar(
         self,
@@ -716,16 +713,4 @@ class AirRendererMixin(RendererMixinSupport):
                 abs_pos = timeline.note_abs_end_pos(note)
                 cell = getattr(note, "end_cell", note.cell)
                 width = getattr(note, "end_width", note.width)
-        y = self.projection.y(abs_pos, current_position)
-        x = self.projection.x(float(cell))
-        w = self.projection.w(float(width))
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QBrush(get_action_bar_color()))
-        painter.drawRect(
-            QRectF(
-                x,
-                y - self.constants.ACTION_BAR_HEIGHT / 2,
-                w,
-                self.constants.ACTION_BAR_HEIGHT,
-            )
-        )
+        self._draw_air_bar_at(cell, width, abs_pos, painter, current_position)

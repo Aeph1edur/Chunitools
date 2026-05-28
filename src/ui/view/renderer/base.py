@@ -409,26 +409,23 @@ class BaseRenderer(
     def _resolve_air_wrapped_foreground(
         self, note: Any
     ) -> Any | None:
-        """Resolve ASC/ASD wrapper to a foreground draw function for the wrapped type.
+        """Resolve ASC/ASD wrapper to a foreground draw function.
 
-        When ASC/ASD wraps a ground note (TAP, CHR, HLD, SLD, FLK), the foreground
-        head should match the wrapped type, not air.
+        Draws an air-action purple tap-style head for all wrapped ground types,
+        keeping the air visual identity while the wrapped type controls behavior.
         """
         if not hasattr(note, "target_note"):
             return None
         wrapped: str = note.target_note
         if not isinstance(wrapped, str):
             return None
-        if wrapped == "TAP":
-            return lambda p, n, c, t, __self=self: __self._draw_tap(
-                p, n, c, t, __self.colors.tap
+        if wrapped in ("TAP", "CHR", "FLK", "HLD", "HXD", "SLD", "SXD", "SLC", "SXC"):
+            from src.ui.theme.notes import get_action_bar_color
+
+            air_purple = get_action_bar_color()
+            return lambda p, n, c, t, __self=self, __c=air_purple: __self._draw_tap(
+                p, n, c, t, __c
             )
-        if wrapped == "CHR":
-            return lambda p, n, c, t, __self=self: __self._draw_tap(
-                p, n, c, t, __self.colors.ex_tap
-            )
-        if wrapped == "FLK":
-            return self._draw_flick
         return None
 
     # --- Core Note Drawing ---
