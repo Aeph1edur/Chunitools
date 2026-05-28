@@ -611,11 +611,12 @@ class MainWindow(QMainWindow):
             chart = load_chart_file(path)
             self.current_chart = chart
             self.current_file_path = path
-            _setup_note_rendering_debug_log(
-                chart.metadata.title,
-                chart.metadata.music_id,
-                path,
-            )
+            if settings.log_note_rendering:
+                _setup_note_rendering_debug_log(
+                    chart.metadata.title,
+                    chart.metadata.music_id,
+                    path,
+                )
             self._chart_dirty = False
             self._chart_read_only = self._path_is_from_data_root(path)
             self.note_editor.clear_history()

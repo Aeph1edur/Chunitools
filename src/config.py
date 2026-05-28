@@ -87,6 +87,7 @@ _TOML_FIELD_MAP: dict[str, tuple[str, str]] = {
     "log_debug_level": ("logger", "debug_level"),
     "log_3d": ("logger", "3D_Log"),
     "log_2d": ("logger", "2D_Log"),
+    "log_note_rendering": ("logger", "note_rendering_log"),
 }
 
 # Sections whose entire table is the value of a single dict field.
@@ -233,6 +234,7 @@ class UserSettings:
     log_debug_level: str = "info"
     log_3d: bool = False
     log_2d: bool = False
+    log_note_rendering: bool = False
 
     def save(self) -> None:
         """Persist settings to disk as a TOML file."""

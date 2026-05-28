@@ -10,6 +10,7 @@ from functools import partial
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QDialog,
     QFileDialog,
@@ -63,8 +64,8 @@ class SettingsDialog(QDialog):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Chunitools — Settings")
-        self.setMinimumSize(840, 560)
-        self.resize(960, 640)
+        self.setMinimumSize(960, 780)
+        self.resize(960, 780)
         self.setModal(True)
 
         self._settings = global_settings
@@ -109,7 +110,7 @@ class SettingsDialog(QDialog):
         right = QWidget()
         right.setStyleSheet(f"background: {APP_BACKGROUND};")
         right_layout = QVBoxLayout(right)
-        right_layout.setContentsMargins(32, 20, 32, 20)
+        right_layout.setContentsMargins(40, 28, 40, 24)
 
         self._stack = QStackedWidget()
         self._stack.setStyleSheet("background: transparent;")
@@ -133,7 +134,8 @@ class SettingsDialog(QDialog):
     def _build_general_page(self) -> QWidget:
         page = QWidget()
         layout = QVBoxLayout(page)
-        layout.setSpacing(20)
+        layout.setSpacing(32)
+        layout.setContentsMargins(0, 0, 0, 0)
 
         title = QLabel("General")
         title.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 18px; font-weight: 600;")
@@ -142,6 +144,8 @@ class SettingsDialog(QDialog):
         desc = QLabel("Application-wide preferences.")
         desc.setStyleSheet(f"color: {TEXT_MUTED}; font-size: 12px;")
         layout.addWidget(desc)
+
+        layout.addSpacing(12)
 
         layout.addWidget(self._build_path_row(
             "Data Directory",
@@ -157,49 +161,55 @@ class SettingsDialog(QDialog):
 
         layout.addWidget(self._build_panel_widths())
         layout.addWidget(self._build_scroll_speed())
+        layout.addWidget(self._build_debug_logging())
 
         layout.addStretch()
         return page
 
     def _build_path_row(self, title: str, description: str, field_name: str) -> QWidget:
         row = QWidget()
-        row_layout = QHBoxLayout(row)
-        row_layout.setContentsMargins(0, 0, 0, 0)
-        row_layout.setSpacing(16)
+        layout = QVBoxLayout(row)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
 
-        label_col = QVBoxLayout()
-        label_col.setSpacing(2)
         lbl = QLabel(title)
         lbl.setStyleSheet(f"color: {TEXT_SOFT}; font-size: 13px; font-weight: 500;")
-        label_col.addWidget(lbl)
+        layout.addWidget(lbl)
+
         desc_lbl = QLabel(description)
         desc_lbl.setStyleSheet(f"color: {TEXT_DIM}; font-size: 11px;")
         desc_lbl.setWordWrap(True)
-        label_col.addWidget(desc_lbl)
+        layout.addWidget(desc_lbl)
 
-        valid_lbl = QLabel("")
-        valid_lbl.setStyleSheet("color: #32d74b; font-size: 11px;")
-        valid_lbl.hide()
-        label_col.addWidget(valid_lbl)
-        self.__dict__[f"{field_name}_valid_lbl"] = valid_lbl
+        layout.addSpacing(4)
 
-        row_layout.addLayout(label_col, 1)
+        path_row = QHBoxLayout()
+        path_row.setSpacing(8)
 
         path_display = QLineEdit()
         path_display.setReadOnly(True)
         path_display.setCursor(Qt.CursorShape.IBeamCursor)
-        path_display.setMinimumWidth(320)
         path_display.setPlaceholderText("Not set")
         raw = getattr(self._settings, field_name, "")
         path_display.setText(setting_path_display(str(raw)))
         self.__dict__[f"{field_name}_display"] = path_display
-        row_layout.addWidget(path_display)
+        path_row.addWidget(path_display, 1)
 
         choose_btn = QPushButton("Choose…")
         choose_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        choose_btn.setFixedWidth(80)
         choose_btn.clicked.connect(partial(self._pick_folder, field_name))
-        row_layout.addSpacing(8)
-        row_layout.addWidget(choose_btn)
+        path_row.addWidget(choose_btn)
+
+        layout.addLayout(path_row)
+
+        layout.addSpacing(2)
+
+        valid_lbl = QLabel("")
+        valid_lbl.setStyleSheet("color: #32d74b; font-size: 11px;")
+        valid_lbl.hide()
+        layout.addWidget(valid_lbl)
+        self.__dict__[f"{field_name}_valid_lbl"] = valid_lbl
 
         return row
 
@@ -217,6 +227,7 @@ class SettingsDialog(QDialog):
             row = QHBoxLayout()
             lbl = QLabel(f"{side} Panel Min Width:")
             lbl.setStyleSheet(f"color: {TEXT_SOFT}; font-size: 12px;")
+            lbl.setMinimumWidth(140)
             row.addWidget(lbl)
             spin = QSpinBox()
             spin.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -409,6 +420,29 @@ class SettingsDialog(QDialog):
 
     def _on_theme_changed(self, text: str) -> None:
         LOGGER.info("Theme changed to: %s", text)
+
+    def _build_debug_logging(self) -> QWidget:
+        group = QGroupBox("Debug Logging")
+        group.setStyleSheet(
+            f"QGroupBox {{ color: {TEXT_MUTED}; font-size: 12px; border: 1px solid {BORDER_CONTROL}; "
+            f"border-radius: 6px; margin-top: 8px; padding-top: 16px; background: {TRANSPARENT}; }}"
+            "QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 4px; }"
+        )
+        layout = QVBoxLayout(group)
+        layout.setSpacing(8)
+
+        self._log_note_rendering_cb = QCheckBox("Enable Note Rendering Debug Log")
+        self._log_note_rendering_cb.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._log_note_rendering_cb.setChecked(self._settings.log_note_rendering)
+        self._log_note_rendering_cb.setStyleSheet(
+            f"QCheckBox {{ color: {TEXT_PRIMARY}; font-size: 13px; font-weight: 500; }}"
+        )
+        self._log_note_rendering_cb.toggled.connect(
+            lambda checked: self._update_setting("log_note_rendering", checked)
+        )
+        layout.addWidget(self._log_note_rendering_cb)
+
+        return group
 
     def _on_scroll_speed_changed(self, value: int) -> None:
         speed = value / 10.0
