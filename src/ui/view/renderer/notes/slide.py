@@ -95,63 +95,23 @@ class SlideRendererMixin(RendererMixinSupport):
         current_position: float,
         timeline: Any,
     ) -> None:
+        if not isinstance(note, Slide):
+            return
+
+        # Head tap — always drawn at the wrapper's start position
         if self._should_draw_slide_head(note, timeline):
-            master_type = (
-                NoteType.SLD
-                if note.note_type == NoteType.SLC
-                else (NoteType.SXD if note.note_type == NoteType.SXC else note.note_type)
+            self._draw_tap(
+                painter, note, current_position, timeline,
+                self._slide_start_color(note),
             )
-            if self.visible_note_types.get(master_type.value, True):
-                self._draw_tap(
-                    painter,
-                    note,
-                    current_position,
-                    timeline,
-                    self._slide_start_color(note),
-                )
+
+        # Draw each step. Visible steps (SLD/SXD) get a colored tap;
+        # invisible steps (SLC/SXC) get a grey control point.
+        # Matches Rust: draw_slide → for step { if is_visible { draw_tap } else { draw_control_point } }
         current_tick = timeline.note_tick(note)
-        step_count = len(note.steps)
-        for index, step in enumerate(note.steps):
+        for step in note.steps:
             current_tick += step.duration
-            step_role = self._slide_step_role(index, step_count, step)
-            if (
-                self.visible_note_types.get(step.note_type.value, True)
-                and step_role in (NOTE_ROLE_START, NOTE_ROLE_LINE_CONTROL)
-            ):
-                self._draw_step_tap(painter, step, current_tick, current_position, timeline)
-        if not timeline.note_has_successor(note):
-            last_step = note.steps[-1] if note.steps else note
-            end_tick = timeline.note_end_tick(note)
-            end_cell = getattr(last_step, "end_cell", note.cell)
-            end_width = getattr(last_step, "end_width", note.width)
-            # Don't draw slide tail if an air arrow replaces it
-            if hasattr(self, "_has_air_reference_at") and self._has_air_reference_at(
-                end_tick, end_cell, end_width, "SLD", timeline
-            ):
-                return
-            master_type = (
-                NoteType.SLD
-                if note.note_type == NoteType.SLC
-                else (NoteType.SXD if note.note_type == NoteType.SXC else note.note_type)
-            )
-            if self.visible_note_types.get(master_type.value, True):
-                y_end, (x_pos, width) = (
-                    self.projection.y(
-                        end_tick / timeline.resolution,
-                        current_position,
-                    ),
-                    (
-                        self.projection.x(end_cell),
-                        self.projection.w(end_width),
-                    ),
-                )
-                rect = QRectF(
-                    x_pos,
-                    y_end - self.constants.HEAD_HEIGHT / 2,
-                    width,
-                    self.constants.HEAD_HEIGHT,
-                )
-                self._draw_rounded_rect(painter, rect, self._slide_endpoint_color(last_step))
+            self._draw_step_tap(painter, step, current_tick, current_position, timeline)
 
     def _draw_slide_foreground_orphan(
         self,
@@ -196,8 +156,6 @@ class SlideRendererMixin(RendererMixinSupport):
         current_position: float,
         timeline: Any,
     ) -> None:
-        if not self.visible_note_types.get(step.note_type.value, True):
-            return
         y, x, w = (
             self.projection.y(absolute_tick / timeline.resolution, current_position),
             self.projection.x(step.end_cell),
@@ -205,7 +163,8 @@ class SlideRendererMixin(RendererMixinSupport):
         )
         rect = QRectF(x, y - self.constants.HEAD_HEIGHT / 2, w, self.constants.HEAD_HEIGHT)
 
-        if timeline.note_render_role(step) == RenderRole.CONTROL:
+        if not getattr(step, "is_visible", True):
+            # Invisible steps (SLC/SXC) draw as grey control points
             border_color = QColor("#808080")
             border_color.setAlpha(127)  # 50% alpha — matches Rust version
             pixmap_key = ("control_point_v2", "#808080", round(w, 2))
@@ -243,22 +202,12 @@ class SlideRendererMixin(RendererMixinSupport):
         )
         painter.drawPixmap(rect.topLeft().toPoint(), pixmap)
 
-    def _slide_step_role(self, index: int, step_count: int, step: Any) -> str:
-        if index == step_count - 1:
-            return NOTE_ROLE_END
-        if step.note_type == NoteType.SLD:
-            return NOTE_ROLE_START
-        return NOTE_ROLE_LINE_CONTROL
-
     def _slide_start_color(self, note: Any) -> Any:
-        return (
-            self.colors.ex_tap
-            if note.note_type in (NoteType.SXD, NoteType.SXC)
-            else self.colors.slide
-        )
+        return self.colors.ex_tap if note.note_type in (NoteType.SXD, NoteType.SXC) else self.colors.slide
 
     def _slide_endpoint_color(self, note: Any) -> Any:
-        return self.colors.slide
+        nt = getattr(note, "note_type", None)
+        return self.colors.ex_tap if nt in (NoteType.SXD, NoteType.SXC) else self.colors.slide
 
     def _slide_head_color(self, note: Any) -> Any:
         return self._slide_start_color(note)

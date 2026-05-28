@@ -240,8 +240,18 @@ class C2sParser(IChartParser):
 
         _air_path_types = AIR_HOLD_NOTE_TYPES | AIR_SLIDE_NOTE_TYPES | AIR_TRACE_NOTE_TYPES
 
+        # Deduplicate: some charts have identical lines that parse to the same note
+        _seen: set[tuple[str, ...]] = set()
+
         for nt, args_tuple in self._raw_notes:
             args = list(args_tuple)
+            # Use the raw args tuple as the dedup key — catches full-line duplicates
+            # but preserves notes at the same position with different extra fields
+            dedup_key = args_tuple
+            if dedup_key in _seen:
+                continue
+            _seen.add(dedup_key)
+
             if nt in SLIDE_NOTE_TYPES:
                 note = _parse_note(nt, args)
                 if isinstance(note, SlideTo):

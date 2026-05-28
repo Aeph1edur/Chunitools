@@ -338,15 +338,17 @@ class BaseRenderer(
             note, AirSlideStart
         ):
             render_tasks.append(RenderTask(20, self._draw_air_slide_background, note, tick))
-            render_tasks.append(RenderTask(55, self._draw_air_action_bar, note, tick))
+            render_tasks.append(RenderTask(35, self._draw_air_action_bar, note, tick))
 
         elif note_type == NoteType.ALD:
             render_tasks.append(RenderTask(20, self._draw_crash_slide_background, note, tick))
-            render_tasks.append(RenderTask(55, self._draw_air_action_bar, note, tick))
+            render_tasks.append(RenderTask(35, self._draw_air_action_bar, note, tick))
 
         elif note_type in (NoteType.AHD, NoteType.AHX):
             render_tasks.append(RenderTask(20, self._draw_air_hold_background, note, tick))
-            render_tasks.append(RenderTask(55, self._draw_air_action_bar, note, tick))
+            # AHX is hybrid ground bar — no floating action bar in air zone
+            if note_type == NoteType.AHD:
+                render_tasks.append(RenderTask(35, self._draw_air_action_bar, note, tick))
 
         elif note_type in AIR_ARROW_NOTES:
             # Draw anchored air visuals behind slide/hold foreground heads
@@ -364,13 +366,13 @@ class BaseRenderer(
         elif note_type == NoteType.TAP:
             render_tasks.append(
                 RenderTask(
-                    30, lambda p, n, c, t: self._draw_tap(p, n, c, t, self.colors.tap), note, tick
+                    40, lambda p, n, c, t: self._draw_tap(p, n, c, t, self.colors.tap), note, tick
                 )
             )
         elif note_type == NoteType.CHR:
             render_tasks.append(
                 RenderTask(
-                    30,
+                    41,
                     lambda p, n, c, t: self._draw_tap(p, n, c, t, self.colors.ex_tap),
                     note,
                     tick,
