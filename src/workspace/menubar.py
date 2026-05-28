@@ -91,9 +91,8 @@ def create_menu_bar(window: MainWindow) -> None:  # noqa: PLR0915
     edit_menu = menu_bar.addMenu("Edit")
     view_menu = menu_bar.addMenu("View")
     mode_menu = menu_bar.addMenu("Mode")
-    notes_menu = menu_bar.addMenu("Note Visibility")
 
-    for m in [file_menu, edit_menu, view_menu, mode_menu, notes_menu]:
+    for m in [file_menu, edit_menu, view_menu, mode_menu]:
         m.setMouseTracking(True)
         m.installEventFilter(window._menu_cursor_filter)
 
@@ -237,65 +236,3 @@ def create_menu_bar(window: MainWindow) -> None:  # noqa: PLR0915
     mode_group.setExclusive(True)
     mode_group.addAction(window.mode_2d_action)
     mode_group.addAction(window.mode_3d_action)
-
-    # --- Note Visibility Menu (Categorized) ---
-    categories = {
-        "Ground Notes": {
-            NoteType.TAP: "Tap",
-            NoteType.CHR: "Ex-Tap",
-            NoteType.FLK: "Flick",
-            NoteType.MNE: "Mine",
-        },
-        "Hold Notes": {
-            NoteType.HLD: "Hold",
-            NoteType.HXD: "Ex-Hold",
-        },
-        "Slide Notes": {
-            NoteType.SLD: "Slide",
-            NoteType.SLC: "Slide Control",
-            NoteType.SXD: "Ex-Slide",
-            NoteType.SXC: "Ex-Slide Control",
-        },
-        "Air Arrows": {
-            NoteType.AIR: "Air",
-            NoteType.AUR: "Air Up-Right",
-            NoteType.AUL: "Air Up-Left",
-            NoteType.ADW: "Air Down",
-            NoteType.ADR: "Air Down-Right",
-            NoteType.ADL: "Air Down-Left",
-        },
-        "Air Holds": {
-            NoteType.AHD: "Air Hold",
-            NoteType.AHX: "Air Hold Action",
-        },
-        "Air Slides": {
-            NoteType.ASD: "Air Slide",
-            NoteType.ASC: "Air Slide Control",
-        },
-        "Air Trace": {
-            NoteType.ALD: "Air Trace and Action",
-            NoteType.ASO: "Air Solid",
-        },
-        "Effects": {
-            NoteType.HHD: "Heaven Hold",
-            NoteType.HHX: "Heaven ExHold",
-        },
-    }
-
-    for cat_name, notes in categories.items():
-        cat_menu = notes_menu.addMenu(cat_name)
-        for nt_enum, label in notes.items():
-            nt_value = nt_enum.value
-            visible = settings.visible_note_types.get(nt_value, True)
-
-            action = QAction(f"Show {label}", window, checkable=True)
-            action.setChecked(visible)
-            action.triggered.connect(
-                lambda checked, val=nt_value: window.settings_handler.toggle_note_visibility(
-                    val, checked
-                )
-            )
-            cat_menu.addAction(action)
-
-        cat_menu.setMouseTracking(True)
-        cat_menu.installEventFilter(window._menu_cursor_filter)

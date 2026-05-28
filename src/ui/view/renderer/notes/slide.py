@@ -25,23 +25,20 @@ class SlideRendererMixin(RendererMixinSupport):
         if not isinstance(note, Slide):
             return
 
-        master_type = (
-            NoteType.SLD
-            if note.note_type == NoteType.SLC
-            else (NoteType.SXD if note.note_type == NoteType.SXC else note.note_type)
-        )
-        if not self.visible_note_types.get(master_type.value, True):
-            return
-
-        points = self._slide_path_points(note, current_position, timeline)
+        # Build all path points — ribbon must go through ALL points
+        # (including invisible SLC control points) to follow the curve.
+        # The is_visible flag only affects the foreground (tap vs control point).
+        points = self._slide_path_points_with_visibility(note, current_position, timeline)
         if len(points) < 2:
             return
 
         color = self.colors.slide_line
 
+        # Draw ribbon through ALL points (matches Rust: ribbon goes through everything)
         for a, b in zip(points, points[1:], strict=False):
             self._draw_slide_segment_ribbon(painter, a, b, color)
 
+        # Core path through all points
         centers = [point.center for point in points]
         core_path = self._build_polyline_path(centers)
 
@@ -116,9 +113,10 @@ class SlideRendererMixin(RendererMixinSupport):
         step_count = len(note.steps)
         for index, step in enumerate(note.steps):
             current_tick += step.duration
+            step_role = self._slide_step_role(index, step_count, step)
             if (
                 self.visible_note_types.get(step.note_type.value, True)
-                and self._slide_step_role(index, step_count, step) == NOTE_ROLE_START
+                and step_role in (NOTE_ROLE_START, NOTE_ROLE_LINE_CONTROL)
             ):
                 self._draw_step_tap(painter, step, current_tick, current_position, timeline)
         if not timeline.note_has_successor(note):
@@ -208,11 +206,13 @@ class SlideRendererMixin(RendererMixinSupport):
         rect = QRectF(x, y - self.constants.HEAD_HEIGHT / 2, w, self.constants.HEAD_HEIGHT)
 
         if timeline.note_render_role(step) == RenderRole.CONTROL:
-            pixmap_key = ("control_point", "#808080", w)
+            border_color = QColor("#808080")
+            border_color.setAlpha(127)  # 50% alpha — matches Rust version
+            pixmap_key = ("control_point_v2", "#808080", round(w, 2))
             pixmap = self.cache.get_pixmap(
                 pixmap_key,
                 lambda p, r: (
-                    p.setPen(self.cache.get_pen(QColor("#808080"), 1)),
+                    p.setPen(self.cache.get_pen(border_color, 1)),
                     p.setBrush(
                         self.cache.get_brush(QColor("#808080"), self.constants.CONTROL_POINT_ALPHA)
                     ),
@@ -300,6 +300,36 @@ class SlideRendererMixin(RendererMixinSupport):
             )
         return points
 
+    def _slide_path_points_with_visibility(
+        self,
+        note: Slide,
+        current_position: float,
+        timeline: Any,
+    ) -> list[SlidePathPoint]:
+        """Build path points with visibility flags matching Rust's is_visible."""
+        res = timeline.resolution
+        current_tick = timeline.note_tick(note)
+        # The head is always visible (it's the entry point)
+        points = [
+            self._slide_path_point(
+                note.cell,
+                note.width,
+                self.projection.y(current_tick / res, current_position),
+                visible=True,
+            )
+        ]
+        for step in note.steps:
+            current_tick += step.duration
+            points.append(
+                self._slide_path_point(
+                    step.end_cell,
+                    step.end_width,
+                    self.projection.y(current_tick / res, current_position),
+                    visible=getattr(step, "is_visible", True),
+                )
+            )
+        return points
+
     def _slide_path_points_orphan(
         self,
         note: SlideTo,
@@ -322,11 +352,12 @@ class SlideRendererMixin(RendererMixinSupport):
             ),
         ]
 
-    def _slide_path_point(self, cell: int, width: int, y: float) -> SlidePathPoint:
+    def _slide_path_point(self, cell: int, width: int, y: float, *, visible: bool = True) -> SlidePathPoint:
         x = self.projection.x(float(cell))
         w = self.projection.w(float(width))
         return SlidePathPoint(
             center=QPointF(x + w / 2, y),
             left=QPointF(x, y),
             right=QPointF(x + w, y),
+            visible=visible,
         )

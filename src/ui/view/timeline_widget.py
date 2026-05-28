@@ -47,7 +47,11 @@ class TimelineWidget(QWidget):
         self.update()
 
     def set_playhead_measure(self, value: float) -> None:
-        self._playhead_measure = max(0.0, value)
+        new_val = max(0.0, value)
+        if abs(self._playhead_measure - new_val) < 0.05:
+            self._playhead_measure = new_val
+            return
+        self._playhead_measure = new_val
         LOGGER.debug("Timeline playhead moved to %.3f", self._playhead_measure)
         self.update()
 

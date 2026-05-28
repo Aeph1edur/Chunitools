@@ -16,6 +16,7 @@ class SlidePathPoint:
     center: QPointF
     left: QPointF
     right: QPointF
+    visible: bool = True
 
 
 class RendererMixinSupport:

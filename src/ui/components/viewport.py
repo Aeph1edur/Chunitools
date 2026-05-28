@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import bisect
+import logging
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QElapsedTimer, QPoint, QPointF, QRect, QRectF, Qt, QTimer, Signal
@@ -19,6 +20,9 @@ from src.core.const import AIR_NOTE_TYPES, NoteType
 from src.ui import theme
 from src.ui.components.note_debug_overlay import NoteDebugOverlay
 from src.ui.theme.notes import get_note_color
+
+PERF_LOGGER = logging.getLogger("ui.timelineview")
+_PERF_SAMPLE_MOD = 60  # Log every Nth frame
 from src.ui.view import timeline_compat
 from src.ui.view.chart_renderer import ChartRenderer
 from src.ui.view.export import (
@@ -130,10 +134,12 @@ class ChartViewport(QWidget):
 
         self._frame_timer = QElapsedTimer()
         self._frame_timer.start()
+        self._frame_seq: int = 0
 
         self._last_pos_update_timer = QElapsedTimer()
         self._last_pos_update_timer.start()
         self._visual_pos: float = 0.0
+        self._visual_velocity: float = 0.0  # measures/second
 
         self.scrollbar = QScrollBar(Qt.Orientation.Vertical, self)
         self._init_scrollbar_style()
@@ -192,6 +198,16 @@ class ChartViewport(QWidget):
         pos = max(min_pos, min(max_pos, pos))
         if abs(self.current_pos - pos) < 1e-6:
             return
+
+        # Track velocity for smooth extrapolation
+        dt_update = self._last_pos_update_timer.nsecsElapsed() / 1_000_000_000.0
+        if 0.001 < dt_update < 0.1:
+            vel = (pos - self._visual_pos) / dt_update
+            # Clamp to reasonable BPM-driven scroll speeds (~200 measures/sec max)
+            self._visual_velocity = max(-200.0, min(200.0, vel))
+        elif dt_update >= 0.1:
+            self._visual_velocity = 0.0  # Gap too large — treat as seek
+        self._visual_pos = pos
         self.current_pos = pos
         self._last_pos_update_timer.restart()
 
@@ -550,6 +566,10 @@ class ChartViewport(QWidget):
         self.user_seeked.emit(self.current_pos)
 
     def paintEvent(self, event: QPaintEvent) -> None:
+        self._frame_seq += 1
+        t_total = QElapsedTimer()
+        t_total.start()
+
         elapsed_ns = self._frame_timer.nsecsElapsed()
         self._frame_timer.start()
         if elapsed_ns > 0:
@@ -575,6 +595,14 @@ class ChartViewport(QWidget):
             else:
                 self._paint_scrolling_mode(
                     painter, view_width, view_height, chart_width, render_pos
+                )
+
+            if self._frame_seq % _PERF_SAMPLE_MOD == 0:
+                total_ms = t_total.nsecsElapsed() / 1_000_000.0
+                wall_ms = elapsed_ns / 1_000_000.0
+                PERF_LOGGER.debug(
+                    "frame=%d dt=%.3fms wall=%.2fms",
+                    self._frame_seq, total_ms, wall_ms,
                 )
 
         finally:
@@ -608,8 +636,11 @@ class ChartViewport(QWidget):
         )
         self.painter_engine.draw_notes(painter, visible_notes, render_pos)
 
+        if self._frame_seq % _PERF_SAMPLE_MOD == 0:
+            PERF_LOGGER.debug("  notes_drawn=%d", len(visible_notes))
+
         if self.show_judgment:
-            painter.setPen(QPen(theme.qt(theme.ACCENT), 4))  # Increased width for better visibility
+            painter.setPen(QPen(theme.qt(theme.ACCENT), 4))
             painter.drawLine(0, 0, int(chart_width), 0)
 
         if self._placement_drag_origin and self._placement_drag_current:
@@ -664,7 +695,15 @@ class ChartViewport(QWidget):
             painter.restore()
 
     def _get_render_pos(self) -> float:
-        """Return the highest-precision position for rendering."""
+        """Return the highest-precision position for rendering.
+
+        During playback, extrapolates from the last known position using the
+        tracked velocity so that every paint frame lands at exactly the right
+        visual position regardless of the playback timer alignment.
+        """
+        if self._is_playback_active():
+            dt = self._last_pos_update_timer.nsecsElapsed() / 1_000_000_000.0
+            return self._visual_pos + self._visual_velocity * dt
         if self.playback_controller:
             return self.playback_controller.get_clock_pos()
         return self.current_pos
@@ -711,7 +750,7 @@ class ChartViewport(QWidget):
         if local_x < 0 or local_x > chart_width:
             return None
 
-        current_pos = self.current_pos
+        current_pos = self._get_render_pos()
         baseline_y = self.height() - self.judgment_offset
         top_abs_pos = projection.pos_at(-baseline_y, current_pos)
         bottom_abs_pos = projection.pos_at(self.judgment_offset, current_pos)
@@ -720,22 +759,41 @@ class ChartViewport(QWidget):
             min(top_abs_pos, bottom_abs_pos), max(top_abs_pos, bottom_abs_pos)
         )
 
+        timeline = self.chart.timeline
         best_note: Note | None = None
         best_distance: float | None = None
-        for note in reversed(visible_notes):
-            note_x = projection.x(note.cell)
-            note_w = projection.w(note.width)
-            note_y = projection.y(self.chart.timeline.note_abs_pos(note), current_pos)
 
-            top_off, bot_off = self._get_note_bounds(note)
-            rect = QRectF(note_x - 4, note_y - top_off - 4, note_w + 8, (top_off - bot_off) + 8)
+        from src.notes import AirSlideStart, Slide
 
+        def _test_note(n: Note, abs_pos_override: float | None = None) -> None:
+            nonlocal best_distance, best_note
+            # For slide steps, render position is at end_cell, not start cell
+            cell_attr = getattr(n, "end_cell", n.cell)
+            width_attr = getattr(n, "end_width", n.width)
+            note_x = projection.x(cell_attr)
+            note_w = projection.w(width_attr)
+            abs_pos = abs_pos_override or timeline.note_abs_pos(n)
+            note_y = projection.y(abs_pos, current_pos)
+            rect = QRectF(note_x - 4, note_y - 4, note_w + 8, 14)
             if not rect.contains(local_x, local_y):
-                continue
+                return
             distance = abs((note_x + note_w / 2) - local_x) + abs(note_y - local_y)
             if best_distance is None or distance < best_distance:
                 best_distance = distance
-                best_note = note
+                best_note = n
+
+        for note in reversed(visible_notes):
+            # Test the top-level wrapper first
+            _test_note(note)
+            # Also test individual slide/air-slide steps
+            if isinstance(note, (Slide, AirSlideStart)):
+                base_tick = timeline.note_tick(note)
+                current_tick = base_tick
+                for step in note.steps:
+                    current_tick += step.duration
+                    step_abs = current_tick / timeline.resolution
+                    _test_note(step, abs_pos_override=step_abs)
+
         return best_note
 
     def _selection_drag_point(self, viewport_point: QPointF) -> QPointF:
@@ -773,12 +831,10 @@ class ChartViewport(QWidget):
             return QRectF()
 
         projection = self.projection
-        current_pos = self.current_pos
+        current_pos = self._get_render_pos()
         chart_width = projection.x(self.total_lanes)
         offset_x = (self.width() - chart_width) / 2
         baseline_y = self.height() - self.judgment_offset
-
-        # Origin/Current are (local_x, abs_pos)
         x1 = self._selection_drag_origin.x() + offset_x
         x2 = self._selection_drag_current.x() + offset_x
 
@@ -792,23 +848,40 @@ class ChartViewport(QWidget):
         if not self.chart:
             return []
 
+        from src.notes import AirSlideStart, Slide
+
         projection = self.projection
-        current_pos = self.current_pos
+        current_pos = self._get_render_pos()
         chart_width = projection.x(self.total_lanes)
         offset_x = (self.width() - chart_width) / 2
         baseline_y = self.height() - self.judgment_offset
 
+        timeline = self.chart.timeline
         matches: list[Note] = []
-        for note in self.chart.notes:
-            x_pos = projection.x(note.cell) + offset_x
-            y_pos = projection.y(self.chart.timeline.note_abs_pos(note), current_pos) + baseline_y
-            width = projection.w(note.width)
 
-            top_off, bot_off = self._get_note_bounds(note)
-            rect = QRectF(x_pos - 4, y_pos - top_off - 4, width + 8, (top_off - bot_off) + 8)
-
+        def _test_rect(n, note_y: float) -> None:
+            cell_attr = getattr(n, "end_cell", n.cell)
+            width_attr = getattr(n, "end_width", n.width)
+            x_pos = projection.x(cell_attr) + offset_x
+            y_pos = note_y + baseline_y
+            width = projection.w(width_attr)
+            rect = QRectF(x_pos - 4, y_pos - 4, width + 8, 14)
             if viewport_rect.intersects(rect):
-                matches.append(note)
+                matches.append(n)
+
+        for note in self.chart.notes:
+            note_y = projection.y(timeline.note_abs_pos(note), current_pos)
+            _test_rect(note, note_y)
+
+            # Also test slide steps
+            if isinstance(note, (Slide, AirSlideStart)):
+                base_tick = timeline.note_tick(note)
+                current_tick = base_tick
+                for step in note.steps:
+                    current_tick += step.duration
+                    step_y = projection.y(current_tick / timeline.resolution, current_pos)
+                    _test_rect(step, step_y)
+
         return matches
 
     def _draw_note_selection_outline(
@@ -821,16 +894,35 @@ class ChartViewport(QWidget):
         if self.chart is None:
             return
 
-        x_pos = projection.x(note.cell)
-        y_pos = projection.y(self.chart.timeline.note_abs_pos(note), current_pos)
-        width = projection.w(note.width)
+        from src.notes import SlideTo
 
-        top_off, bot_off = self._get_note_bounds(note)
-        rect = QRectF(x_pos - 4, y_pos - top_off - 4, width + 8, (top_off - bot_off) + 8)
+        timeline = self.chart.timeline
 
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.setPen(QPen(theme.qt(theme.SELECTION_OUTLINE), 2, Qt.PenStyle.DashLine))
-        painter.drawRect(rect)
+        def _draw_rect(n, n_abs_pos: float) -> None:
+            cell_attr = getattr(n, "end_cell", n.cell)
+            width_attr = getattr(n, "end_width", n.width)
+            x_pos = projection.x(cell_attr)
+            y_pos = projection.y(n_abs_pos, current_pos)
+            width = projection.w(width_attr)
+            rect = QRectF(x_pos - 4, y_pos - 4, width + 8, 14)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.setPen(QPen(theme.qt(theme.SELECTION_OUTLINE), 2, Qt.PenStyle.DashLine))
+            painter.drawRect(rect)
+
+        if isinstance(note, SlideTo):
+            # Slide step — need to find its parent and compute position
+            for parent_note in self.chart.notes:
+                if hasattr(parent_note, "steps") and note in parent_note.steps:
+                    base_tick = timeline.note_tick(parent_note)
+                    current_tick = base_tick
+                    for step in parent_note.steps:
+                        current_tick += step.duration
+                        if step is note:
+                            _draw_rect(note, current_tick / timeline.resolution)
+                            return
+            return
+
+        _draw_rect(note, timeline.note_abs_pos(note))
 
     # --- Helpers ---
 

@@ -38,21 +38,20 @@ def _configure_logging() -> None:
 
     debug_handler = logging.FileHandler(log_dir / LOG_FILE_NAME, mode="w", encoding="utf-8")
     debug_handler.setFormatter(formatter)
-    debug_handler.setLevel(logging.WARNING)
+    debug_handler.setLevel(logging.DEBUG)
     root_logger.addHandler(debug_handler)
 
     dedicated_loggers = {
-        "chartloading": "chartloading.log",
         "ui.3dview": "3dview.log",
-        "ui.timelineview": "timelineview.log",
+        "ui.timelineview": "timeline_rendering_performance.log",
     }
 
     for logger_name, file_name in dedicated_loggers.items():
         handler = logging.FileHandler(log_dir / file_name, mode="w", encoding="utf-8")
         handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
-        handler.setLevel(logging.WARNING)
+        handler.setLevel(logging.DEBUG)
         logger = logging.getLogger(logger_name)
-        logger.setLevel(logging.WARNING)
+        logger.setLevel(logging.DEBUG)
         logger.addHandler(handler)
         logger.propagate = False
 

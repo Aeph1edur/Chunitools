@@ -8,11 +8,15 @@ from PySide6.QtCore import QElapsedTimer, QObject, Qt, QTimer, Signal
 if TYPE_CHECKING:
     from src.core.models import Chart
 
+import logging
+
 MAX_PLAYBACK_FPS = 120
 PLAYBACK_TIMER_INTERVAL_MS = max(1, round(1000 / MAX_PLAYBACK_FPS))
-PLAYBACK_POSITION_SIGNAL_FPS = 30
+PLAYBACK_POSITION_SIGNAL_FPS = 120
 PLAYBACK_POSITION_SIGNAL_INTERVAL_MS = max(1, round(1000 / PLAYBACK_POSITION_SIGNAL_FPS))
 TRIGGER_EPSILON_SECONDS = 0.001
+
+SYNC_LOGGER = logging.getLogger("ui.timelineview")
 
 
 class PlaybackController(QObject):
@@ -157,6 +161,9 @@ class PlaybackController(QObject):
         internal_time_s = (
             self._start_pos_seconds + self._start_time.nsecsElapsed() / 1_000_000_000.0
         )
+        new_target = target_time_s - internal_time_s
+        SYNC_LOGGER.debug("sync_to: pos=%.4f target_offset=%.6f prev_offset=%.6f",
+                          pos, new_target, self._sync_offset_s)
         if target_time_s > internal_time_s:
             self._emit_due_triggers(target_time_s)
         elif target_time_s < internal_time_s - TRIGGER_EPSILON_SECONDS:
@@ -164,7 +171,7 @@ class PlaybackController(QObject):
             self._resync_index_at_time(target_time_s)
             self._suppressed_landing_trigger_time_s = target_time_s
             return
-        self._target_sync_offset_s = target_time_s - internal_time_s
+        self._target_sync_offset_s = new_target
 
     def _reset_clock_to_time(self, time_s: float) -> None:
         self._start_pos_seconds = time_s
@@ -258,6 +265,11 @@ class PlaybackController(QObject):
             and self._last_position_emit_timer.elapsed() < PLAYBACK_POSITION_SIGNAL_INTERVAL_MS
         ):
             return
+        delta = self.current_pos - getattr(self, '_prev_logged_pos', -999.0)
+        if delta < -0.0001:
+            SYNC_LOGGER.debug("pos_backward: %.4f -> %.4f (offset=%.6f)",
+                              self._prev_logged_pos, self.current_pos, self._sync_offset_s)
+        self._prev_logged_pos = self.current_pos
         self._last_position_emit_timer.restart()
         self.pos_changed.emit(self.current_pos)
 

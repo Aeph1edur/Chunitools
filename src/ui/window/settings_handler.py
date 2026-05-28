@@ -33,9 +33,6 @@ class SettingsHandler:
         if hasattr(self.w, "open_folder_btn"):
             self.w.open_folder_btn.setVisible(settings.show_export_button)
 
-        self.w.visualizer.set_visible_note_types(settings.visible_note_types)
-        if hasattr(self.w, "play_view"):
-            self.w.play_view.set_visible_note_types(settings.visible_note_types)
         self.w.visualizer.set_subdivisions(settings.subdivisions)
         self.w.timeline_widget.set_subdivisions(settings.subdivisions)
         self.w.visualizer.set_scroll_speed(settings.scroll_speed)
@@ -150,13 +147,6 @@ class SettingsHandler:
         self.w.playback_service.set_music_volume(volume)
 
     # ── Note visibility ──
-
-    def toggle_note_visibility(self, note_type_value: str, checked: bool) -> None:
-        settings.visible_note_types[note_type_value] = checked
-        settings.save()
-        self.w.visualizer.set_visible_note_types(settings.visible_note_types)
-        if hasattr(self.w, "play_view"):
-            self.w.play_view.set_visible_note_types(settings.visible_note_types)
 
     # ── Grid ──
 

@@ -100,12 +100,17 @@ EX_TAP_SHAPE_CODES = {
 
 @dataclass(slots=True)
 class RenderCache:
-    """Internal cache for Pens, Brushes, and Pixmaps."""
+    """Internal cache for Pens, Brushes, Pixmaps, and reusable point buffers."""
 
     pens: dict[tuple[int, float], QPen] = field(default_factory=dict)
     brushes: dict[int, QBrush] = field(default_factory=dict)
     pixmaps: dict[tuple[Any, ...], QPixmap] = field(default_factory=dict)
     tasks: dict[int, list[RenderTask]] = field(default_factory=dict)
+    # Pre-allocated point buffers to avoid per-frame list allocations
+    _lane_buf: list[QPointF] = field(default_factory=list)
+    _measure_buf: list[QPointF] = field(default_factory=list)
+    _minor_buf: list[QPointF] = field(default_factory=list)
+    _beat_buf: list[QPointF] = field(default_factory=list)
 
     def get_pen(self, color: QColor, width: float = 1.0) -> QPen:
         key = (color.rgba(), width)
@@ -201,12 +206,13 @@ class BaseRenderer(
             self.projection.y(bottom_measure, current_position),
         )
 
-        lines = []
+        buf = self.cache._lane_buf
+        buf.clear()
         for lane_index in range(self.total_lanes + 1):
             x_pos = self.projection.x(lane_index)
-            lines.append(QPointF(x_pos, y_start))
-            lines.append(QPointF(x_pos, y_end))
-        painter.drawLines(lines)
+            buf.append(QPointF(x_pos, y_start))
+            buf.append(QPointF(x_pos, y_end))
+        painter.drawLines(buf)
 
     def draw_measure_lines(  # noqa: PLR0913
         self,
@@ -226,8 +232,10 @@ class BaseRenderer(
             if not hasattr(self, "_beat_subdiv_pen"):
                 self._beat_subdiv_pen = self.cache.get_pen(CHED_BEAT_LINE, 1)
             beat_step = max(1, self.subdivisions // 4)
-            minor_lines: list[QPointF] = []
-            beat_lines: list[QPointF] = []
+            minor_lines = self.cache._minor_buf
+            minor_lines.clear()
+            beat_lines = self.cache._beat_buf
+            beat_lines.clear()
             for measure_idx in range(start_measure, end_measure):
                 for sub_idx in range(1, self.subdivisions):
                     y_pos = self.projection.y(
@@ -247,25 +255,34 @@ class BaseRenderer(
         if not hasattr(self, "_measure_pen"):
             self._measure_pen = self.cache.get_pen(CHED_BAR_LINE, 1)
         painter.setPen(self._measure_pen)
-        m_lines = []
+        m_lines = self.cache._measure_buf
+        m_lines.clear()
+        # Collect label data first so we can batch render them
+        label_data: list[tuple[QRectF, str]] = []
         for measure_idx in range(start_measure, end_measure + 1):
             y_pos = self.projection.y(float(measure_idx), current_position)
             m_lines.append(QPointF(0.0, y_pos))
             m_lines.append(QPointF(vw_f, y_pos))
 
             if show_labels:
-                painter.save()
-                painter.setPen(theme_qt(TEXT_MEASURE))
-                label_rect = QRectF(-44, y_pos - 10, 40, 20)
-                painter.drawText(
-                    label_rect,
-                    Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+                label_data.append((
+                    QRectF(-44, y_pos - 10, 40, 20),
                     f"{measure_idx + 1:03d}",
-                )
-                painter.restore()
-                painter.setPen(self._measure_pen)  # Restore for next lines if needed
+                ))
 
         painter.drawLines(m_lines)
+
+        # Batched label rendering — one save/restore for all labels
+        if label_data:
+            painter.save()
+            painter.setPen(theme_qt(TEXT_MEASURE))
+            for rect, text in label_data:
+                painter.drawText(
+                    rect,
+                    Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+                    text,
+                )
+            painter.restore()
 
     def draw_notes(self, painter: QPainter, notes: list[Any], current_position: float) -> None:
         if not self.projection.timeline_engine:
@@ -277,28 +294,7 @@ class BaseRenderer(
         # Bucketed dispatch for O(N) Z-ordering
         buckets: dict[int, list[RenderTask]] = {}
 
-        composite_head_types = {
-            NoteType.HLD,
-            NoteType.HXD,
-            NoteType.SLD,
-            NoteType.SXD,
-            NoteType.SLC,
-            NoteType.SXC,
-            NoteType.ASD,
-            NoteType.ASC,
-            NoteType.ASX,
-            NoteType.AHD,
-            NoteType.AHX,
-            NoteType.ALD,
-        }
         for note in notes:
-            nt_val = note.note_type.value
-            if (
-                not self.visible_note_types.get(nt_val, True)
-                and note.note_type not in composite_head_types
-            ):
-                continue
-
             note_id = id(note)
             if note_id in self.cache.tasks:
                 note_tasks = self.cache.tasks[note_id]
@@ -312,7 +308,6 @@ class BaseRenderer(
 
         # Execute buckets in priority order
         for priority in sorted(buckets.keys()):
-            # Within a priority bucket, we still sort by tick to maintain visual consistency
             bucket_tasks = buckets[priority]
             bucket_tasks.sort(key=lambda t: t.tick)
             for task in bucket_tasks:
