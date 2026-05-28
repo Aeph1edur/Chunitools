@@ -129,8 +129,7 @@ QPushButton#CommandButton {{
     border-radius: 4px;
     font-weight: 500;
     padding: 2px 12px;
-    min-height: 18px;
-    height: 22px;
+    min-height: 22px;
 }}
 
 QPushButton#CommandButton:hover {{
@@ -153,9 +152,7 @@ QLineEdit, QTextEdit {{
     selection-color: {WHITE};
     font-family: {FONT_MONO};
     font-size: 12px;
-    min-height: 18px;
-    height: 22px;
-    margin: 4px 0;
+    min-height: 22px;
 }}
 
 QLineEdit:focus, QTextEdit:focus {{
@@ -336,5 +333,6 @@ QSpinBox {{
     border: 1px solid {BORDER_CONTROL};
     border-radius: 4px;
     padding: 2px 6px;
+    min-height: 22px;
 }}
 """

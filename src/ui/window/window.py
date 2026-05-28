@@ -396,8 +396,8 @@ class MainWindow(QMainWindow):
 
         btn_style = (
             f"QPushButton {{ background: transparent; color: {theme.WHITE}; "
-            "border: none; border-radius: 4px; padding: 4px; "
-            "min-width: 26px; max-width: 26px; min-height: 26px; max-height: 26px; }}"
+            f"border: none; border-radius: 4px; padding: 4px; "
+            f"min-width: 26px; max-width: 26px; min-height: 26px; max-height: 26px; }}"
             f"QPushButton:hover {{ background: {theme.SURFACE_LIST_HOVER}; }}"
         )
 
@@ -456,8 +456,8 @@ class MainWindow(QMainWindow):
         self.measure_display.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.measure_display.setStyleSheet(
             f"QLineEdit {{ background: {theme.SURFACE_ELEVATED}; color: {theme.WHITE}; "
-            "border: none; border-radius: 4px; "
-            "font-size: 12px; font-family: monospace; padding: 0 4px; }}"
+            f"border: none; border-radius: 4px; "
+            f"font-size: 12px; font-family: monospace; padding: 0 4px; }}"
         )
         self.measure_display.setText("001")
         self.measure_display.mouseDoubleClickEvent = lambda e: self._start_measure_edit()
@@ -471,7 +471,7 @@ class MainWindow(QMainWindow):
         self.measure_edit.setStyleSheet(
             f"QLineEdit {{ background: {theme.SURFACE_ELEVATED}; color: {theme.WHITE}; "
             f"border: 1px solid {theme.ACCENT}; border-radius: 4px; "
-            "font-size: 12px; font-family: monospace; padding: 0 4px; }}"
+            f"font-size: 12px; font-family: monospace; padding: 0 4px; }}"
         )
         self.measure_edit.hide()
         self.measure_edit.returnPressed.connect(self._commit_measure_edit)

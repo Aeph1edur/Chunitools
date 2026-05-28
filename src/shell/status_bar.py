@@ -50,7 +50,7 @@ def init_status_widgets(window: MainWindow) -> None:
         f"QPushButton {{ background: {theme.SURFACE_STATUS_BUTTON}; "
         f"color: {theme.WHITE}; "
         f"border: 1px solid {theme.BORDER_CONTROL}; "
-        "border-radius: 4px; padding: 2px 8px; min-height: 20px; }}"
+        f"border-radius: 4px; padding: 2px 8px; min-height: 20px; }}"
         f"QPushButton:hover {{ background: {theme.SURFACE_STATUS_BUTTON_HOVER}; }}"
     )
 

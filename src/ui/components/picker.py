@@ -61,7 +61,7 @@ _LIST_STYLESHEET = f"""
 
 _MENU_STYLESHEET = (
     f"QMenu {{ background: {theme.SURFACE_MENU}; color: {theme.TEXT_SOFT}; "
-    "border: 1px solid rgba(255, 255, 255, 0.10); border-radius: 8px; }}"
+    f"border: 1px solid rgba(255, 255, 255, 0.10); border-radius: 8px; }}"
     f"QMenu::item {{ padding: 8px 18px; background: {theme.TRANSPARENT}; }}"
     f"QMenu::item:selected {{ background: {theme.SURFACE_MENU_HOVER}; color: {theme.TEXT_PRIMARY}; }}"
 )
