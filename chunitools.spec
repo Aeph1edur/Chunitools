@@ -9,7 +9,6 @@
 # or build.py.  The `--add-data` below bundles the whole vgmstream/
 # directory so the app can find it at runtime via sys._MEIPASS.
 
-import platform
 import sys
 from pathlib import Path
 
@@ -19,7 +18,8 @@ OS = "windows" if sys.platform.startswith("win") else \
 CLI = "vgmstream-cli.exe" if OS == "windows" else "vgmstream-cli"
 
 # ── Vendor vgmstream path ────────────────────────────────────────────
-VENDOR_VGM = Path(__file__).parent / "vendor" / "vgmstream"
+# SPECPATH is the directory containing this .spec file (PyInstaller provides it)
+VENDOR_VGM = Path(SPECPATH) / "vendor" / "vgmstream"  # noqa: F405
 VGM_DIR = VENDOR_VGM / OS
 
 # Check that vgmstream-cli exists (download script should have been run first)

@@ -137,8 +137,9 @@ class MainWindow(QMainWindow):
         self.save_music_xml_action: QAction
         self.export_audio_action: QAction
         self.export_all_action: QAction
-        self.change_data_dir_action: QAction
+        self.rescan_data_action: QAction
         self.open_settings_action: QAction
+        self.open_logs_action: QAction
         self.undo_action: QAction
         self.redo_action: QAction
         self.toggle_warnings_action: QAction

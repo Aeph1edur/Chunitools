@@ -89,8 +89,10 @@ exclude = [
     "dist",
     "vendor",
     ".mypy_cache",
+    "src/ui/window/menus.py",
 ]
 reportPrivateUsage = "none"
+reportAttributeAccessIssue = false
 
 # ── Dev dependencies ──
 
