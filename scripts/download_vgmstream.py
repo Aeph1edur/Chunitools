@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Download the latest vgmstream release for one or all platforms.
+"""Download a pinned vgmstream release for one or all platforms.
 
 Usage:
     python scripts/download_vgmstream.py              # all platforms
@@ -12,7 +12,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import json
 import shutil
 import zipfile
 from pathlib import Path
@@ -20,7 +19,6 @@ from tempfile import TemporaryDirectory
 from urllib.request import urlopen
 
 REPO = "vgmstream/vgmstream"
-GITHUB_API = f"https://api.github.com/repos/{REPO}/releases"
 
 # Maps our platform name -> GitHub asset suffix and target dir
 PLATFORM_ASSETS: dict[str, dict[str, str]] = {
@@ -41,29 +39,8 @@ PLATFORM_ASSETS: dict[str, dict[str, str]] = {
 ROOT = Path(__file__).resolve().parent.parent
 VENDOR_DIR = ROOT / "vendor" / "vgmstream"
 
-
+# Pinned release — update this to the latest tag when needed.
 DEFAULT_TAG = "r2117"
-
-
-def _latest_tag() -> str:
-    """Return the tag name of the latest vgmstream release.
-
-    Falls back to ``DEFAULT_TAG`` on API errors (rate limiting in CI).
-    """
-    import os  # noqa: PLC0415
-    from urllib.request import Request  # noqa: PLC0415
-
-    url = f"{GITHUB_API}/latest"
-    headers = {"Accept": "application/vnd.github+json"}
-    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    try:
-        req = urlopen(Request(url, headers=headers), timeout=10)  # noqa: S310
-        data = json.loads(req.read().decode())
-        return data["tag_name"]
-    except Exception:  # noqa: BLE001
-        return DEFAULT_TAG
 
 
 def _asset_url(tag: str, platform: str) -> str:
@@ -132,14 +109,18 @@ def main() -> None:  # noqa: PLR0915
         choices=list(PLATFORM_ASSETS) + ["all"],
         help="Target platform(s) to download for (default: all)",
     )
-    parser.add_argument("--tag", help=f"Specific release tag (default: latest, or {DEFAULT_TAG} on API error)")
+    parser.add_argument(
+        "--tag",
+        default=DEFAULT_TAG,
+        help=f"Release tag (default: {DEFAULT_TAG})",
+    )
     args = parser.parse_args()
 
     platforms: list[str] = args.platforms
     if "all" in platforms:
         platforms = list(PLATFORM_ASSETS)
 
-    tag = args.tag or _latest_tag()
+    tag = args.tag
     print(f"vgmstream release: {tag}")
     print(f"Target platforms:   {', '.join(platforms)}")
 
